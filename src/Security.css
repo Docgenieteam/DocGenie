@@ -1,0 +1,443 @@
+.security-page {
+  min-height: 100vh;
+  background: #f7f5fa;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 30px;
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.security-card {
+  width: min(720px, 100%);
+
+  background: white;
+
+  border: 1px solid #ebe7f0;
+  border-radius: 24px;
+
+  padding: 38px 55px 32px;
+
+  box-shadow:
+    0 25px 70px rgba(52, 42, 70, 0.1),
+    0 5px 18px rgba(52, 42, 70, 0.04);
+}
+
+/* BRAND */
+
+.security-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  color: #302b3c;
+
+  font-size: 21px;
+  font-weight: 750;
+
+  margin-bottom: 35px;
+}
+
+.security-logo {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 11px;
+
+  background: #70539d;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* PROGRESS */
+
+.security-progress {
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+
+  margin-bottom: 14px;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-circle {
+  width: 31px;
+  height: 31px;
+
+  border-radius: 50%;
+
+  border: 1px solid #ddd7e5;
+
+  background: white;
+
+  color: #aaa4b1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  flex-shrink: 0;
+}
+
+.progress-step.completed .progress-circle {
+  background: #70539d;
+  border-color: #70539d;
+  color: white;
+}
+
+.progress-line {
+  height: 1px;
+
+  background: #e5e0e9;
+
+  flex: 1;
+
+  margin: 0 5px;
+}
+
+.completed-line {
+  background: #70539d;
+}
+
+.security-step-label {
+  text-align: center;
+
+  color: #8f8999;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: 1.3px;
+
+  margin-bottom: 24px;
+}
+
+/* CONTENT */
+
+.security-icon,
+.security-success-icon {
+  width: 54px;
+  height: 54px;
+
+  margin: 0 auto 17px;
+
+  border-radius: 50%;
+
+  background: #f0eaf7;
+
+  color: #70539d;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 22px;
+}
+
+.security-success-icon {
+  background: #eee7f5;
+}
+
+.security-card h1 {
+  margin: 0;
+
+  text-align: center;
+
+  color: #302b3c;
+
+  font-size: 27px;
+
+  letter-spacing: -0.7px;
+}
+
+.security-description {
+  text-align: center;
+
+  color: #9994a4;
+
+  font-size: 10.5px;
+
+  line-height: 1.6;
+
+  margin: 8px auto 24px;
+
+  max-width: 430px;
+}
+
+/* BOX */
+
+.security-box {
+  background: #fcfbfd;
+
+  border: 1px solid #ebe6ef;
+
+  border-radius: 12px;
+
+  padding: 22px;
+
+  margin-top: 10px;
+}
+
+.security-box h3 {
+  margin: 0 0 8px;
+
+  color: #4d4758;
+
+  font-size: 13px;
+}
+
+.security-box p {
+  margin: 0;
+
+  color: #9994a4;
+
+  font-size: 10px;
+
+  line-height: 1.7;
+}
+
+/* FORM */
+
+.security-box label {
+  display: block;
+
+  color: #55505f;
+
+  font-size: 10px;
+
+  font-weight: 650;
+
+  margin: 0 0 7px;
+}
+
+.security-box label:not(:first-child) {
+  margin-top: 17px;
+}
+
+.security-input {
+  width: 100%;
+
+  height: 44px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #e5e1e9;
+
+  border-radius: 9px;
+
+  background: white;
+
+  outline: none;
+
+  padding: 0 12px;
+
+  color: #4b4655;
+
+  font-size: 10.5px;
+}
+
+.security-input:focus {
+  border-color: #a58ac6;
+
+  box-shadow:
+    0 0 0 3px rgba(122, 87, 166, 0.08);
+}
+
+.security-input::placeholder {
+  color: #b0abb6;
+}
+
+.otp-input {
+  margin-top: 16px;
+
+  text-align: center;
+
+  letter-spacing: 5px;
+
+  font-weight: 700;
+}
+
+/* REVIEW */
+
+.review-box {
+  display: flex;
+  flex-direction: column;
+
+  gap: 15px;
+}
+
+.review-box div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  border-bottom: 1px solid #eeeaf0;
+
+  padding-bottom: 11px;
+}
+
+.review-box div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.review-box span {
+  color: #9994a4;
+
+  font-size: 9.5px;
+}
+
+.review-box strong {
+  color: #4b4655;
+
+  font-size: 10px;
+}
+
+/* SUCCESS */
+
+.security-success {
+  margin-top: 17px;
+
+  padding: 11px;
+
+  border-radius: 8px;
+
+  background: #f0eaf7;
+
+  color: #70539d;
+
+  text-align: center;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* BUTTONS */
+
+.security-actions {
+  display: flex;
+
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-top: 25px;
+}
+
+.security-actions button {
+  height: 44px;
+
+  border-radius: 9px;
+
+  padding: 0 24px;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.security-back {
+  border: 1px solid #e1dce6;
+
+  background: white;
+
+  color: #706a78;
+}
+
+.security-back:hover {
+  background: #faf9fb;
+}
+
+.security-next {
+  border: 0;
+
+  background: #70539d;
+
+  color: white;
+
+  margin-left: auto;
+
+  box-shadow:
+    0 8px 18px rgba(112, 83, 157, 0.18);
+}
+
+.security-next:hover {
+  background: #60458c;
+  transform: translateY(-1px);
+}
+
+/* MOBILE */
+
+@media (max-width: 650px) {
+  .security-page {
+    padding: 15px;
+  }
+
+  .security-card {
+    padding: 28px 22px 25px;
+
+    border-radius: 18px;
+  }
+
+  .security-card h1 {
+    font-size: 23px;
+  }
+
+  .progress-circle {
+    width: 27px;
+    height: 27px;
+
+    font-size: 9px;
+  }
+
+  .security-brand {
+    margin-bottom: 28px;
+  }
+}
+
+@media (max-width: 450px) {
+  .security-card {
+    padding: 24px 17px;
+  }
+
+  .security-progress {
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+
+  .security-box {
+    padding: 17px;
+  }
+
+  .security-actions button {
+    padding: 0 16px;
+  }
+}

@@ -1,0 +1,617 @@
+.home-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(37, 117, 252, 0.08),
+      transparent 25%
+    ),
+    linear-gradient(
+      135deg,
+      #f8fbff 0%,
+      #eef5ff 100%
+    );
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: #102d68;
+}
+
+/* HEADER */
+
+.home-header {
+  height: 82px;
+  background: rgba(255, 255, 255, 0.9);
+
+  border-bottom: 1px solid #e4edfb;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 7%;
+
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.05);
+}
+
+.home-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-brand img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.home-brand h1 {
+  margin: 0;
+
+  font-size: 22px;
+  font-weight: 800;
+
+  color: #0b2e72;
+}
+
+.home-brand p {
+  margin: 3px 0 0;
+
+  font-size: 9px;
+  color: #8090ad;
+}
+
+.home-profile {
+  border: 1px solid #dce7f8;
+
+  background: white;
+
+  border-radius: 10px;
+
+  padding: 10px 18px;
+
+  color: #1656c5;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+/* CONTENT */
+
+.home-content {
+  max-width: 1150px;
+  margin: auto;
+
+  padding: 55px 30px;
+}
+
+/* WELCOME */
+
+.home-welcome {
+  min-height: 300px;
+
+  background: white;
+
+  border: 1px solid #e4ecfa;
+
+  border-radius: 24px;
+
+  padding: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  position: relative;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 20px 55px rgba(43, 90, 160, 0.08);
+}
+
+.home-welcome::after {
+  content: "";
+
+  position: absolute;
+
+  width: 400px;
+  height: 400px;
+
+  right: -170px;
+  bottom: -250px;
+
+  border-radius: 50%;
+
+  background: #eaf2ff;
+}
+
+.home-small-title {
+  font-size: 10px;
+
+  font-weight: 800;
+
+  letter-spacing: 2px;
+
+  color: #2170e8;
+}
+
+.home-welcome h2 {
+  margin: 14px 0;
+
+  font-size: 38px;
+
+  line-height: 1.15;
+
+  color: #102e70;
+}
+
+.home-welcome h2 span {
+  color: #1976ed;
+}
+
+.home-welcome p {
+  max-width: 500px;
+
+  color: #71809c;
+
+  font-size: 14px;
+
+  line-height: 1.7;
+}
+
+.home-logo-card {
+  width: 220px;
+  height: 220px;
+
+  border-radius: 50%;
+
+  background: #f4f8ff;
+
+  display: grid;
+  place-items: center;
+
+  position: relative;
+  z-index: 2;
+}
+
+.home-logo-card img {
+  width: 155px;
+  height: 155px;
+
+  object-fit: contain;
+}
+
+/* CARDS */
+
+.home-cards {
+  margin-top: 30px;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 22px;
+}
+
+.home-card {
+  background: white;
+
+  border: 1px solid #e4ecfa;
+
+  border-radius: 18px;
+
+  padding: 27px;
+
+  box-shadow:
+    0 12px 35px rgba(43, 90, 160, 0.06);
+}
+
+.home-card-icon {
+  width: 48px;
+  height: 48px;
+
+  border-radius: 12px;
+
+  background: #edf5ff;
+
+  display: grid;
+  place-items: center;
+
+  font-size: 22px;
+}
+
+.home-card h3 {
+  margin: 18px 0 7px;
+
+  color: #173774;
+
+  font-size: 17px;
+}
+
+.home-card p {
+  color: #8190aa;
+
+  font-size: 12px;
+
+  line-height: 1.6;
+
+  min-height: 40px;
+}
+
+.home-card button {
+  margin-top: 15px;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #1769df;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+/* MOBILE */
+
+@media (max-width: 800px) {
+  .home-header {
+    padding: 0 20px;
+  }
+
+  .home-content {
+    padding: 25px 15px;
+  }
+
+  .home-welcome {
+    padding: 30px;
+  }
+
+  .home-logo-card {
+    display: none;
+  }
+
+  .home-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================
+   HOME TEXT ALIGNMENT
+===================================================== */
+
+.home-page {
+  text-align: left;
+}
+
+.home-content {
+  text-align: left;
+}
+
+.welcome-section {
+  text-align: left;
+}
+
+.welcome-section h2 {
+  margin: 0;
+  line-height: 1.3;
+}
+
+.welcome-section p {
+  margin: 5px 0 0;
+  line-height: 1.4;
+}
+
+.total-document-info {
+  text-align: left;
+}
+
+.total-document-info span,
+.total-document-info strong,
+.total-document-info small {
+  display: block;
+}
+
+.total-document-info strong {
+  line-height: 1.1;
+  margin: 3px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-header h3 {
+  margin: 0;
+  text-align: left;
+}
+
+.section-header button {
+  margin-left: auto;
+}
+
+.category-info {
+  text-align: left;
+}
+
+.expiry-info {
+  text-align: left;
+}
+
+.expiry-info strong,
+.expiry-info span {
+  display: block;
+}
+
+.expiry-info strong {
+  line-height: 1.3;
+}
+
+.expiry-info span {
+  margin-top: 3px;
+}
+
+.quick-actions {
+  text-align: center;
+}
+
+.quick-actions button {
+  text-align: center;
+}
+
+.quick-actions button span {
+  display: block;
+}
+
+.home-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* =====================================================
+   HOME THEME BUTTON
+===================================================== */
+
+.theme-home-button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.2s ease;
+}
+
+.theme-home-button:hover {
+  transform: scale(1.05);
+}
+
+/* =====================================================
+   HOME - LIGHT MODE
+===================================================== */
+
+.light-mode .home-page {
+  background: #f7f9fc;
+  color: #183b73;
+}
+
+.light-mode .top-header {
+  background: #ffffff;
+  color: #183b73;
+}
+
+.light-mode .theme-home-button {
+  background: #edf3fb;
+  color: #183b73;
+}
+
+.light-mode .notification-button {
+  color: #183b73;
+}
+
+.light-mode .welcome-section p {
+  color: #66758a;
+}
+
+.light-mode .search-box {
+  background: #ffffff;
+  color: #183b73;
+}
+
+.light-mode .search-box input {
+  color: #183b73;
+}
+
+.light-mode .search-box input::placeholder {
+  color: #8a97a8;
+}
+
+.light-mode .total-document-card {
+  background: #ffffff;
+  color: #183b73;
+}
+
+.light-mode .quick-actions button {
+  color: #183b73;
+}
+
+.light-mode .section-header h3 {
+  color: #183b73;
+}
+
+.light-mode .section-header button {
+  color: #3d6fae;
+}
+
+.light-mode .expiry-card {
+  background: #ffffff;
+  color: #183b73;
+}
+
+.light-mode .bottom-navigation {
+  background: #ffffff;
+  color: #183b73;
+}
+
+.light-mode .bottom-navigation button {
+  color: #7b8797;
+}
+
+.light-mode .bottom-navigation button.active {
+  color: #183b73;
+}
+
+/* =====================================================
+   HOME - DARK MODE
+===================================================== */
+
+.dark-mode .home-page {
+  background: #0f1724;
+  color: #f1f5f9;
+}
+
+.dark-mode .top-header {
+  background: #151f2e;
+  color: #f1f5f9;
+}
+
+.dark-mode .home-logo span {
+  color: #f1f5f9;
+}
+
+.dark-mode .menu-button {
+  color: #f1f5f9;
+}
+
+.dark-mode .theme-home-button {
+  background: #26364d;
+  color: #ffd76a;
+}
+
+.dark-mode .notification-button {
+  color: #f1f5f9;
+}
+
+.dark-mode .welcome-section p {
+  color: #a9b5c5;
+}
+
+.dark-mode .search-box {
+  background: #192536;
+  color: #dbe5f1;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .search-box input {
+  color: #f1f5f9;
+}
+
+.dark-mode .search-box input::placeholder {
+  color: #8795a8;
+}
+
+.dark-mode .total-document-card {
+  background: #192536;
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .total-document-info span {
+  color: #b8c4d3;
+}
+
+.dark-mode .total-document-info small {
+  color: #9eacbd;
+}
+
+.dark-mode .quick-actions button {
+  color: #f1f5f9;
+}
+
+.dark-mode .quick-action-icon {
+  background: #24364f;
+}
+
+.dark-mode .section-header h3 {
+  color: #f1f5f9;
+}
+
+.dark-mode .section-header button {
+  color: #8db8ed;
+}
+
+.dark-mode .category-card {
+  background: #192536;
+}
+
+.dark-mode .category-info strong {
+  color: #f1f5f9;
+}
+
+.dark-mode .category-info span {
+  color: #aab7c7;
+}
+
+.dark-mode .expiry-card {
+  background: #192536;
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .expiry-info span {
+  color: #aebaca;
+}
+
+.dark-mode .expiry-info b {
+  color: #f2c968;
+}
+
+.dark-mode .bottom-navigation {
+  background: #151f2e;
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark-mode .bottom-navigation button {
+  color: #8492a4;
+}
+
+.dark-mode .bottom-navigation button.active {
+  color: #8db8ed;
+}
+
+.dark-mode .nav-add {
+  background: #183b73;
+  color: #ffffff;
+}
