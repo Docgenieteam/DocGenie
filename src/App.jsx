@@ -68,10 +68,7 @@ function App() {
       date: "12 May 2024",
       icon: "identity",
       color: "blue",
-
-      // Date format: YYYY-MM-DD
       expiry: "2026-08-25",
-
       description: "Aadhaar identity document",
     },
 
@@ -138,7 +135,6 @@ function App() {
 
   const getExpiryStatus = (expiry) => {
 
-    // No expiry date
     if (!expiry) {
       return {
         type: "none",
@@ -155,8 +151,6 @@ function App() {
     today.setHours(0, 0, 0, 0);
 
 
-    // Split YYYY-MM-DD manually
-    // This avoids timezone problems
     const parts = expiry.split("-");
 
     if (parts.length !== 3) {
@@ -248,7 +242,6 @@ function App() {
     }
 
 
-    // MORE THAN 90 DAYS
     return {
       type: "none",
       label: "No upcoming expiry",
@@ -260,7 +253,7 @@ function App() {
 
 
   // =====================================================
-  // ADD EXPIRY STATUS TO DOCUMENTS
+  // DOCUMENTS WITH EXPIRY STATUS
   // =====================================================
 
   const documentsWithExpiryStatus = documents.map(
@@ -285,26 +278,37 @@ function App() {
   // NAVIGATION
   // =====================================================
 
-  /*
-    IMPORTANT:
+  const navigate = (
+    nextPage,
+    document = null
+  ) => {
 
-    navigate now accepts a second argument.
+    /*
+      When Home search sends:
 
-    Example:
+      onNavigate(
+        "document-details",
+        document
+      )
 
-    onNavigate("document-details", document)
+      this stores that exact document.
+    */
 
-    The selected document is saved in selectedDocument.
-  */
-
-  const navigate = (nextPage, document = null) => {
-
-    // If a document was provided, save it
-    if (document) {
+    if (
+      nextPage === "document-details" &&
+      document
+    ) {
       setSelectedDocument(document);
     }
 
+    /*
+      If another page is opened without
+      a document, don't overwrite the
+      currently selected document.
+    */
+
     setPage(nextPage);
+
 
     window.scrollTo({
       top: 0,
@@ -693,6 +697,7 @@ function App() {
 
               {
                 type: "public-key",
+
                 id:
                   base64ToBuffer(
                     savedCredential
@@ -794,7 +799,7 @@ function App() {
 
 
   // =====================================================
-  // OPEN DOCUMENT
+  // OPEN DOCUMENT FROM DOCUMENTS PAGE
   // =====================================================
 
   const openDocument = (document) => {
@@ -1177,6 +1182,7 @@ function App() {
             selectedDocument
               ? {
                   ...selectedDocument,
+
                   expiryStatus:
                     getExpiryStatus(
                       selectedDocument.expiry
