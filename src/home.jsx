@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import docgenieLogo from "./assets/docgenie-logo.png";
 
 import {
   Bell,
@@ -25,14 +26,10 @@ function Home({
   account,
   documents = [],
   onNavigate,
-
-  // PROFILE PICTURE
   profilePic,
   onOpenProfilePicker,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // SEARCH
   const [searchQuery, setSearchQuery] = useState("");
 
   const username = account?.name || "Username";
@@ -66,6 +63,18 @@ function Home({
     );
   });
 
+  // =========================================
+  // OPEN DOCUMENT DETAILS
+  // =========================================
+
+  const handleDocumentClick = (document) => {
+    setSearchQuery("");
+    setMenuOpen(false);
+
+    // Send the selected document to App.jsx
+    onNavigate("document-details", document);
+  };
+
   return (
     <div className="mobile-page home-page">
 
@@ -74,6 +83,8 @@ function Home({
       ========================================= */}
 
       <header className="top-header">
+
+        {/* MENU */}
 
         <div className="home-menu-wrapper">
 
@@ -89,16 +100,20 @@ function Home({
           {menuOpen && (
             <div className="home-dropdown-menu">
 
+              {/* DOCUMENTS */}
+
               <button
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                   onNavigate("document-details", document)
+                  onNavigate("documents");
                 }}
               >
                 📄
                 <span>Documents</span>
               </button>
+
+              {/* EXPIRY */}
 
               <button
                 type="button"
@@ -110,6 +125,8 @@ function Home({
                 ⏰
                 <span>Expiry</span>
               </button>
+
+              {/* REMINDERS */}
 
               <button
                 type="button"
@@ -129,22 +146,22 @@ function Home({
 
 
         {/* =========================================
-            LOGO
+            DOCGENIE BRAND
         ========================================= */}
 
         <div className="home-logo">
 
-          <img
-            src="/docgenie-logo.png"
-            alt="DocGenie"
-            className="docgenie-home-logo"
-          />
+  <img
+    src={docgenieLogo}
+    alt="DocGenie Logo"
+    className="docgenie-home-logo"
+  />
 
-          <span>
-            DocGenie
-          </span>
+  <span className="docgenie-home-name">
+    DocGenie
+  </span>
 
-        </div>
+</div>
 
 
         {/* =========================================
@@ -154,9 +171,7 @@ function Home({
         <button
           type="button"
           className="notification-button"
-          onClick={() =>
-            onNavigate("reminders")
-          }
+          onClick={() => onNavigate("reminders")}
           aria-label="Notifications"
         >
 
@@ -183,8 +198,6 @@ function Home({
         ========================================= */}
 
         <section className="welcome-section">
-
-          {/* PROFILE PICTURE */}
 
           <div
             className="profile-avatar"
@@ -219,7 +232,7 @@ function Home({
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "contain",
+                  objectFit: "cover",
                   borderRadius: "50%",
                   display: "block",
                 }}
@@ -312,7 +325,7 @@ function Home({
                     type="button"
                     className="search-result-item"
                     onClick={() =>
-                      onNavigate("documents")
+                      handleDocumentClick(document)
                     }
                     style={{
                       width: "100%",
@@ -340,7 +353,9 @@ function Home({
                         justifyContent: "center",
                       }}
                     >
+
                       <FileText size={20} />
+
                     </div>
 
 
@@ -397,11 +412,7 @@ function Home({
                   }}
                 />
 
-                <p
-                  style={{
-                    margin: 0,
-                  }}
-                >
+                <p style={{ margin: 0 }}>
                   No documents found
                 </p>
 
@@ -421,9 +432,7 @@ function Home({
         <button
           type="button"
           className="total-document-card"
-          onClick={() =>
-            onNavigate("documents")
-          }
+          onClick={() => onNavigate("documents")}
         >
 
           <div className="total-shield">
@@ -461,14 +470,11 @@ function Home({
 
         <section className="quick-actions">
 
-
           {/* UPLOAD */}
 
           <button
             type="button"
-            onClick={() =>
-              onNavigate("upload")
-            }
+            onClick={() => onNavigate("upload")}
           >
 
             <div className="quick-action-icon">
@@ -752,7 +758,6 @@ export function BottomNavigation({
 
     <nav className="bottom-navigation">
 
-
       {/* HOME */}
 
       <button
@@ -867,7 +872,6 @@ export function BottomNavigation({
         </span>
 
       </button>
-
 
     </nav>
   );
