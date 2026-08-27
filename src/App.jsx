@@ -69,8 +69,7 @@ function App() {
       icon: "identity",
       color: "blue",
 
-      // IMPORTANT:
-      // Date format must be YYYY-MM-DD
+      // Date format: YYYY-MM-DD
       expiry: "2026-08-25",
 
       description: "Aadhaar identity document",
@@ -150,6 +149,7 @@ function App() {
       };
     }
 
+
     const today = new Date();
 
     today.setHours(0, 0, 0, 0);
@@ -168,6 +168,7 @@ function App() {
         daysRemaining: null,
       };
     }
+
 
     const year = Number(parts[0]);
     const month = Number(parts[1]) - 1;
@@ -194,7 +195,7 @@ function App() {
     );
 
 
-    // 🔴 EXPIRED
+    // EXPIRED
     if (daysRemaining < 0) {
       return {
         type: "expired",
@@ -206,7 +207,7 @@ function App() {
     }
 
 
-    // 🟠 WITHIN 7 DAYS
+    // WITHIN 7 DAYS
     if (daysRemaining <= 7) {
       return {
         type: "7-days",
@@ -223,7 +224,7 @@ function App() {
     }
 
 
-    // 🟡 WITHIN 30 DAYS
+    // WITHIN 30 DAYS
     if (daysRemaining <= 30) {
       return {
         type: "30-days",
@@ -235,7 +236,7 @@ function App() {
     }
 
 
-    // 🔵 WITHIN 90 DAYS
+    // WITHIN 90 DAYS
     if (daysRemaining <= 90) {
       return {
         type: "90-days",
@@ -247,7 +248,7 @@ function App() {
     }
 
 
-    // ✅ MORE THAN 90 DAYS
+    // MORE THAN 90 DAYS
     return {
       type: "none",
       label: "No upcoming expiry",
@@ -284,7 +285,24 @@ function App() {
   // NAVIGATION
   // =====================================================
 
-  const navigate = (nextPage) => {
+  /*
+    IMPORTANT:
+
+    navigate now accepts a second argument.
+
+    Example:
+
+    onNavigate("document-details", document)
+
+    The selected document is saved in selectedDocument.
+  */
+
+  const navigate = (nextPage, document = null) => {
+
+    // If a document was provided, save it
+    if (document) {
+      setSelectedDocument(document);
+    }
 
     setPage(nextPage);
 
@@ -338,6 +356,7 @@ function App() {
 
 
     reader.onerror = () => {
+
       alert(
         "Unable to read the selected image."
       );
@@ -674,7 +693,6 @@ function App() {
 
               {
                 type: "public-key",
-
                 id:
                   base64ToBuffer(
                     savedCredential
@@ -798,7 +816,6 @@ function App() {
       ...document,
 
       id: Date.now(),
-
     };
 
 
@@ -807,7 +824,6 @@ function App() {
       newDocument,
 
       ...previous,
-
     ]);
 
 
@@ -830,7 +846,6 @@ function App() {
           newDocument,
 
           ...existingDocuments,
-
         ])
       );
 
@@ -1057,7 +1072,9 @@ function App() {
       )}
 
 
-      {/* HOME */}
+      {/* =================================================
+          HOME
+      ================================================= */}
 
       {page === "home" && (
 
@@ -1082,7 +1099,9 @@ function App() {
       )}
 
 
-      {/* PROFILE */}
+      {/* =================================================
+          PROFILE
+      ================================================= */}
 
       {page === "profile" && (
 
@@ -1123,7 +1142,9 @@ function App() {
       )}
 
 
-      {/* DOCUMENTS */}
+      {/* =================================================
+          DOCUMENTS
+      ================================================= */}
 
       {page === "documents" && (
 
@@ -1144,7 +1165,9 @@ function App() {
       )}
 
 
-      {/* DOCUMENT DETAILS */}
+      {/* =================================================
+          DOCUMENT DETAILS
+      ================================================= */}
 
       {page === "document-details" && (
 
@@ -1173,7 +1196,9 @@ function App() {
       )}
 
 
-      {/* UPLOAD */}
+      {/* =================================================
+          UPLOAD
+      ================================================= */}
 
       {page === "upload" && (
 
@@ -1188,7 +1213,9 @@ function App() {
       )}
 
 
-      {/* SHARE */}
+      {/* =================================================
+          SHARE
+      ================================================= */}
 
       {page === "share" && (
 
@@ -1203,7 +1230,9 @@ function App() {
       )}
 
 
-      {/* REMINDERS */}
+      {/* =================================================
+          REMINDERS
+      ================================================= */}
 
       {page === "reminders" && (
 

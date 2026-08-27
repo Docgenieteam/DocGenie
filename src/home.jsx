@@ -1,5 +1,4 @@
-import React from "react";
-import logo from "./assets/docgenie-logo.png";
+import React, { useState } from "react";
 
 import {
   Bell,
@@ -22,7 +21,6 @@ import {
   BriefcaseBusiness,
 } from "lucide-react";
 
-
 function Home({
   account,
   documents = [],
@@ -32,16 +30,44 @@ function Home({
   profilePic,
   onOpenProfilePicker,
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  // SEARCH
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const username =
-    account?.name || "Username";
+  const username = account?.name || "Username";
 
+  // =========================================
+  // SEARCH DOCUMENTS
+  // =========================================
+
+  const filteredDocuments = documents.filter((document) => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return false;
+    }
+
+    const documentName =
+      document?.name ||
+      document?.title ||
+      document?.fileName ||
+      document?.filename ||
+      "";
+
+    const category =
+      document?.category ||
+      document?.type ||
+      "";
+
+    return (
+      documentName.toLowerCase().includes(query) ||
+      category.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="mobile-page home-page">
-
 
       {/* =========================================
           HEADER
@@ -51,61 +77,65 @@ function Home({
 
         <div className="home-menu-wrapper">
 
-  <button
-    type="button"
-    className="menu-button"
-    aria-label="Menu"
-    onClick={() => setMenuOpen(!menuOpen)}
-  >
-    ☰
-  </button>
+          <button
+            type="button"
+            className="menu-button"
+            aria-label="Menu"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            ☰
+          </button>
 
-  {menuOpen && (
-    <div className="home-dropdown-menu">
+          {menuOpen && (
+            <div className="home-dropdown-menu">
 
-      <button
-        type="button"
-        onClick={() => {
-          setMenuOpen(false);
-          onNavigate("documents");
-        }}
-      >
-        📄
-        <span>Documents</span>
-      </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                   onNavigate("document-details", document)
+                }}
+              >
+                📄
+                <span>Documents</span>
+              </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          setMenuOpen(false);
-          onNavigate("reminders");
-        }}
-      >
-        ⏰
-        <span>Expiry</span>
-      </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onNavigate("reminders");
+                }}
+              >
+                ⏰
+                <span>Expiry</span>
+              </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          setMenuOpen(false);
-          onNavigate("reminders");
-        }}
-      >
-        🔔
-        <span>Reminders</span>
-      </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onNavigate("reminders");
+                }}
+              >
+                🔔
+                <span>Reminders</span>
+              </button>
 
-    </div>
-  )}
+            </div>
+          )}
 
-</div>
+        </div>
 
+
+        {/* =========================================
+            LOGO
+        ========================================= */}
 
         <div className="home-logo">
 
           <img
-            src={logo}
+            src="/docgenie-logo.png"
             alt="DocGenie"
             className="docgenie-home-logo"
           />
@@ -117,7 +147,9 @@ function Home({
         </div>
 
 
-        {/* NOTIFICATIONS */}
+        {/* =========================================
+            NOTIFICATIONS
+        ========================================= */}
 
         <button
           type="button"
@@ -146,14 +178,13 @@ function Home({
       <main className="page-content home-content">
 
 
-        {/* WELCOME */}
+        {/* =========================================
+            WELCOME
+        ========================================= */}
 
         <section className="welcome-section">
 
-
-          {/* =====================================
-              PROFILE PICTURE
-          ===================================== */}
+          {/* PROFILE PICTURE */}
 
           <div
             className="profile-avatar"
@@ -218,7 +249,9 @@ function Home({
         </section>
 
 
-        {/* SEARCH */}
+        {/* =========================================
+            SEARCH
+        ========================================= */}
 
         <div className="search-box">
 
@@ -227,6 +260,10 @@ function Home({
           <input
             type="text"
             placeholder="Search documents..."
+            value={searchQuery}
+            onChange={(event) =>
+              setSearchQuery(event.target.value)
+            }
           />
 
           <Filter size={18} />
@@ -234,7 +271,152 @@ function Home({
         </div>
 
 
-        {/* TOTAL DOCUMENTS */}
+        {/* =========================================
+            SEARCH RESULTS
+        ========================================= */}
+
+        {searchQuery.trim() !== "" && (
+
+          <div
+            className="search-results"
+            style={{
+              marginTop: "10px",
+              marginBottom: "20px",
+            }}
+          >
+
+            {filteredDocuments.length > 0 ? (
+
+              filteredDocuments.map((document, index) => {
+
+                const documentName =
+                  document?.name ||
+                  document?.title ||
+                  document?.fileName ||
+                  document?.filename ||
+                  `Document ${index + 1}`;
+
+                const category =
+                  document?.category ||
+                  document?.type ||
+                  "Document";
+
+                return (
+
+                  <button
+                    key={
+                      document?.id ||
+                      document?.fileId ||
+                      index
+                    }
+                    type="button"
+                    className="search-result-item"
+                    onClick={() =>
+                      onNavigate("documents")
+                    }
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "12px",
+                      marginBottom: "8px",
+                      border: "none",
+                      borderRadius: "12px",
+                      background: "white",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        minWidth: "40px",
+                        borderRadius: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <FileText size={20} />
+                    </div>
+
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "3px",
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+
+                      <strong
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {documentName}
+                      </strong>
+
+                      <span>
+                        {category}
+                      </span>
+
+                    </div>
+
+
+                    <ChevronRight size={18} />
+
+                  </button>
+
+                );
+
+              })
+
+            ) : (
+
+              <div
+                style={{
+                  padding: "18px",
+                  textAlign: "center",
+                  borderRadius: "12px",
+                  background: "white",
+                }}
+              >
+
+                <FileText
+                  size={28}
+                  style={{
+                    marginBottom: "8px",
+                  }}
+                />
+
+                <p
+                  style={{
+                    margin: 0,
+                  }}
+                >
+                  No documents found
+                </p>
+
+              </div>
+
+            )}
+
+          </div>
+
+        )}
+
+
+        {/* =========================================
+            TOTAL DOCUMENTS
+        ========================================= */}
 
         <button
           type="button"
@@ -354,18 +536,24 @@ function Home({
 
           {/* SHARE */}
 
-<button
-  type="button"
-  onClick={() => onNavigate("share")}
->
-  <div className="quick-action-icon">
-    <Share2 size={20} />
-  </div>
+          <button
+            type="button"
+            onClick={() =>
+              onNavigate("share")
+            }
+          >
 
-  <span>
-    Share
-  </span>
-</button>
+            <div className="quick-action-icon">
+
+              <Share2 size={20} />
+
+            </div>
+
+            <span>
+              Share
+            </span>
+
+          </button>
 
         </section>
 
@@ -525,6 +713,7 @@ function Category({
 }) {
 
   return (
+
     <div
       className={`category-card ${color}`}
     >
@@ -560,6 +749,7 @@ export function BottomNavigation({
 }) {
 
   return (
+
     <nav className="bottom-navigation">
 
 
