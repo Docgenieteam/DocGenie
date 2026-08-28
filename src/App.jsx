@@ -1,4 +1,8 @@
-import { useRef, useState } from "react"; 
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
  
 // Authentication pages 
 import Loading from "./loading.jsx"; 
@@ -263,15 +267,80 @@ function App() {
   // ADD EXPIRY STATUS TO DOCUMENTS 
   // ===================================================== 
  
-  const documentsWithExpiryStatus = documents.map( 
-    (document) => ({ 
-      ...document, 
-      expiryStatus: getExpiryStatus( 
-        document.expiry 
-      ), 
-    }) 
-  ); 
+  const documentsWithExpiryStatus = documents.map(
+  (document) => ({
+    ...document,
+    expiryStatus: getExpiryStatus(
+      document.expiry
+    ),
+  })
+);
+
+// =====================================================
+// EXPIRY NOTIFICATIONS
+// =====================================================
+
+const expiryNotifications = documentsWithExpiryStatus.filter(
+  (document) => {
+    const status = document.expiryStatus?.type;
+
+    return (
+      status === "expired" ||
+      status === "7-days" ||
+      status === "30-days" ||
+      status === "90-days"
+    );
+  }
+);
  
+
+// =====================================================
+// BROWSER EXPIRY NOTIFICATIONS
+// =====================================================
+
+const sendExpiryNotifications = () => {
+  if (!("Notification" in window)) {
+    console.log(
+      "Browser notifications are not supported."
+    );
+    return;
+  }
+
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then(
+      (permission) => {
+        if (permission === "granted") {
+          showExpiryNotifications();
+        }
+      }
+    );
+
+    return;
+  }
+
+  if (Notification.permission === "granted") {
+    showExpiryNotifications();
+  }
+};
+
+const showExpiryNotifications = () => {
+  expiryNotifications.forEach((document) => {
+    const status = document.expiryStatus;
+
+    new Notification("DocGenie Expiry Alert", {
+      body: `${document.name}: ${status.label}`,
+      icon: "/docgenie-logo.png",
+    });
+  });
+};
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    sendExpiryNotifications();
+  }, 1500);
+
+  return () => clearTimeout(timer);
+}, []);
  
   // ===================================================== 
   // SELECTED DOCUMENT 
@@ -866,20 +935,25 @@ function App() {
   // DELETE DOCUMENT 
   // ===================================================== 
  
-  const deleteDocument = (id) => { 
- 
-    setDocuments((previous) => 
-      previous.filter( 
-        (document) => 
-          document.id !== id 
-      ) 
-    ); 
- 
- 
-    setSelectedDocument(null); 
- 
-    navigate("documents"); 
-  }; 
+  const deleteDocument = (id) => {
+
+  setDocuments((previous) => {
+    const updatedDocuments = previous.filter(
+      (document) => document.id !== id
+    );
+
+    localStorage.setItem(
+      "docgenie-documents",
+      JSON.stringify(updatedDocuments)
+    );
+
+    return updatedDocuments;
+  });
+
+  setSelectedDocument(null);
+
+  navigate("documents");
+};
  
  
   // ===================================================== 
@@ -1078,23 +1152,14 @@ function App() {
  
       {page === "home" && ( 
  
-        <Home 
- 
-          account={account} 
- 
-          documents={ 
-            documentsWithExpiryStatus 
-          } 
- 
-          onNavigate={navigate} 
- 
-          profilePic={profilePic} 
- 
-          onOpenProfilePicker={ 
-            openProfilePicker 
-          } 
- 
-        /> 
+        <Home
+  account={account}
+  documents={documentsWithExpiryStatus}
+  onNavigate={navigate}
+  profilePic={profilePic}
+  onOpenProfilePicker={openProfilePicker}
+  notificationCount={expiryNotifications.length}
+/>
  
       )} 
  
@@ -1234,19 +1299,13 @@ function App() {
           REMINDERS 
       ================================================= */} 
  
-      {page === "reminders" && ( 
- 
-        <Reminders 
- 
-          documents={ 
-            documentsWithExpiryStatus 
-          } 
- 
-          onNavigate={navigate} 
- 
-        /> 
- 
-      )} 
+      {page === "reminders" && (
+  <Reminders
+    documents={documentsWithExpiryStatus}
+    onNavigate={navigate}
+    notificationCount={expiryNotifications.length}
+  />
+)}
  
     </div> 
   ); 

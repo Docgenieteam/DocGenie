@@ -23,7 +23,22 @@ function CreateAccount({
       return;
     }
 
+    if (!/^\d{10}$/.test(account.phone)) {
+      alert("Please enter exactly 10 digits for the phone number.");
+      return;
+    }
+
     onContinue();
+  };
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "");
+
+    if (value.length <= 10) {
+      updateAccount({
+        phone: value,
+      });
+    }
   };
 
   return (
@@ -32,6 +47,7 @@ function CreateAccount({
       <div className="form-card">
 
         <button
+          type="button"
           className="back-link"
           onClick={onLogin}
         >
@@ -49,11 +65,13 @@ function CreateAccount({
           Let's get your secure account started.
         </p>
 
+        {/* FULL NAME */}
         <div className="form-field">
 
           <label>Full Name *</label>
 
           <div className="input-wrapper">
+
             <User size={19} />
 
             <input
@@ -66,31 +84,38 @@ function CreateAccount({
                 })
               }
             />
+
           </div>
 
         </div>
 
+        {/* AGE */}
         <div className="form-field">
 
           <label>Age *</label>
 
           <div className="input-wrapper">
+
             <Calendar size={19} />
 
             <input
               type="number"
               placeholder="Enter your age"
               value={account.age}
+              min="1"
+              max="120"
               onChange={(e) =>
                 updateAccount({
                   age: e.target.value,
                 })
               }
             />
+
           </div>
 
         </div>
 
+        {/* PHONE NUMBER */}
         <div className="form-field">
 
           <label>Phone Number *</label>
@@ -101,20 +126,31 @@ function CreateAccount({
 
             <input
               type="tel"
-              placeholder="Enter your phone number"
+              inputMode="numeric"
+              placeholder="Enter 10-digit phone number"
               value={account.phone}
-              onChange={(e) =>
-                updateAccount({
-                  phone: e.target.value,
-                })
-              }
+              maxLength={10}
+              onChange={handlePhoneChange}
             />
 
           </div>
 
+          <small
+            style={{
+              display: "block",
+              marginTop: "6px",
+              color: "#777",
+              fontSize: "12px",
+            }}
+          >
+            Enter exactly 10 digits
+          </small>
+
         </div>
 
+        {/* CONTINUE */}
         <button
+          type="button"
           className="primary-button"
           onClick={handleContinue}
         >

@@ -26,9 +26,15 @@ function Home({
   account,
   documents = [],
   onNavigate,
+
+  // PROFILE PICTURE
   profilePic,
   onOpenProfilePicker,
+
+  // NOTIFICATIONS
+  notificationCount = 0,
 }) {
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -169,19 +175,25 @@ function Home({
         ========================================= */}
 
         <button
-          type="button"
-          className="notification-button"
-          onClick={() => onNavigate("reminders")}
-          aria-label="Notifications"
-        >
+  type="button"
+  className="notification-button"
+  onClick={() =>
+    onNavigate("reminders")
+  }
+  aria-label="Notifications"
+>
 
-          <Bell size={21} />
+  <Bell size={21} />
 
-          <span className="notification-dot">
-            1
-          </span>
+  {notificationCount > 0 && (
+    <span className="notification-dot">
+      {notificationCount > 9
+        ? "9+"
+        : notificationCount}
+    </span>
+  )}
 
-        </button>
+</button>
 
       </header>
 
@@ -453,8 +465,8 @@ function Home({
             </strong>
 
             <small>
-              5 Expiring Soon
-            </small>
+  {notificationCount} Expiring Soon
+</small>
 
           </div>
 
@@ -655,37 +667,80 @@ function Home({
         </div>
 
 
-        <button
-          type="button"
-          className="expiry-card"
-          onClick={() =>
-            onNavigate("reminders")
-          }
-        >
+        {documents.filter(
+  (document) =>
+    document.expiryStatus &&
+    document.expiryStatus.type !== "none"
+  ).length > 0 ? (
 
-          <div className="expiry-icon">
+  documents
+    .filter(
+      (document) =>
+        document.expiryStatus &&
+        document.expiryStatus.type !== "none"
+    )
+    .slice(0, 1)
+    .map((document) => (
 
-            <BriefcaseBusiness size={19} />
+      <button
+        key={document.id}
+        type="button"
+        className="expiry-card"
+        onClick={() =>
+          onNavigate(
+            "document-details",
+            document
+          )
+        }
+      >
 
-          </div>
+        <div className="expiry-icon">
 
+          <BriefcaseBusiness size={19} />
 
-          <div className="expiry-info">
+        </div>
 
-            <strong>
-              Passport
-            </strong>
+        <div className="expiry-info">
 
-            <span>
-              Expires in <b>45 days</b>
-            </span>
+          <strong>
+            {document.name}
+          </strong>
 
-          </div>
+          <span>
+            {document.expiryStatus.label}
+          </span>
 
+        </div>
 
-          <ChevronRight size={19} />
+        <ChevronRight size={19} />
 
-        </button>
+      </button>
+
+    ))
+
+) : (
+
+  <div className="expiry-card">
+
+    <div className="expiry-icon">
+      <ShieldCheck size={19} />
+    </div>
+
+    <div className="expiry-info">
+
+      <strong>
+        No Upcoming Expiry
+      </strong>
+
+      <span>
+        Your documents are up to date.
+      </span>
+
+    </div>
+
+  </div>
+
+)}
 
 
         <div className="bottom-nav-space" />
