@@ -36,6 +36,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // =====================================================
+    // FIREBASE CLOUD MESSAGING TOKENS
+    // =====================================================
+    // One user can use DocGenie on multiple browsers/devices.
+    // Therefore we store multiple FCM tokens.
+    // =====================================================
+
+    fcmTokens: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

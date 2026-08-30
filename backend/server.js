@@ -9,6 +9,7 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const documentRoutes = require("./routes/documentRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 dotenv.config();
 
