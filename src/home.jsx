@@ -562,13 +562,11 @@ function Home({
           {/* SCAN */}
 
           <button
-            type="button"
-            onClick={() =>
-              alert(
-                "Document scanner will be available soon."
-              )
-            }
-          >
+  type="button"
+  onClick={() =>
+    onNavigate("scan")
+  }
+>
 
             <div className="quick-action-icon">
               <ScanLine size={20} />

@@ -27,6 +27,7 @@ import Profile from "./profile.jsx";
 import Documents from "./documents.jsx";
 import DocumentDetails from "./document-details.jsx";
 import UploadDocument from "./upload-document.jsx";
+import ScanDocument from "./scan-document.jsx";
 import ShareDocument from "./share-document.jsx";
 import Reminders from "./reminders.jsx";
 
@@ -81,75 +82,19 @@ function App() {
 
   // =====================================================
   // DOCUMENTS
+  //
+  // IMPORTANT:
+  // Documents are NOT hardcoded anymore.
+  //
+  // A newly created user starts with:
+  //
+  // documents = []
+  //
+  // Documents will be loaded from the backend
+  // after successful login.
   // =====================================================
 
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      name: "Aadhaar Card",
-      category: "Identity",
-      date: "12 May 2024",
-      icon: "identity",
-      color: "blue",
-      expiry: "2026-08-25",
-      description: "Aadhaar identity document",
-    },
-
-    {
-      id: 2,
-      name: "PAN Card",
-      category: "Financial",
-      date: "10 Apr 2024",
-      icon: "financial",
-      color: "blue",
-      expiry: "",
-      description: "Permanent Account Number card",
-    },
-
-    {
-      id: 3,
-      name: "Passport",
-      category: "Identity",
-      date: "26 Apr 2024",
-      icon: "passport",
-      color: "blue",
-      expiry: "2034-04-12",
-      description: "Indian passport",
-    },
-
-    {
-      id: 4,
-      name: "10th Marksheet",
-      category: "Education",
-      date: "10 Apr 2024",
-      icon: "education",
-      color: "red",
-      expiry: "",
-      description: "10th standard marksheet",
-    },
-
-    {
-      id: 5,
-      name: "Health Insurance",
-      category: "Health",
-      date: "02 Apr 2024",
-      icon: "health",
-      color: "red",
-      expiry: "",
-      description: "Health insurance document",
-    },
-
-    {
-      id: 6,
-      name: "Property Deed",
-      category: "Property",
-      date: "28 Mar 2024",
-      icon: "property",
-      color: "orange",
-      expiry: "",
-      description: "Property ownership document",
-    },
-  ]);
+  const [documents, setDocuments] = useState([]);
 
 
   // =====================================================
@@ -527,7 +472,7 @@ function App() {
       // -------------------------------------------------
 
       const response = await fetch(
-  "http://localhost:5000/api/auth/register",
+        "http://localhost:5000/api/auth/register",
         {
           method: "POST",
 
@@ -582,6 +527,89 @@ function App() {
 
 
   // =====================================================
+  // LOAD USER DOCUMENTS
+  //
+  // This function gets documents belonging ONLY
+  // to the currently logged-in user.
+  // =====================================================
+
+  const loadDocuments = async () => {
+
+    try {
+
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
+        );
+
+
+      // No token = no authenticated user
+      if (!token) {
+
+        setDocuments([]);
+
+        return;
+      }
+
+
+      const response = await fetch(
+        "http://localhost:5000/api/documents",
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        console.error(
+          "Unable to load documents:",
+          data.message
+        );
+
+        setDocuments([]);
+
+        return;
+      }
+
+
+      // Backend should return:
+      //
+      // {
+      //   documents: [...]
+      // }
+
+      setDocuments(
+        Array.isArray(data.documents)
+          ? data.documents
+          : []
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Load documents error:",
+        error
+      );
+
+      setDocuments([]);
+    }
+  };
+
+
+  // =====================================================
   // LOGIN
   // =====================================================
 
@@ -613,7 +641,7 @@ function App() {
       // -------------------------------------------------
 
       const response = await fetch(
-  "http://localhost:5000/api/auth/login",
+        "http://localhost:5000/api/auth/login",
         {
           method: "POST",
 
@@ -685,7 +713,7 @@ function App() {
 
 
       // If backend returns a token,
-      // save the token instead of password.
+      // save the token.
 
       if (data.token) {
 
@@ -694,6 +722,13 @@ function App() {
           data.token
         );
       }
+
+
+      // -------------------------------------------------
+      // LOAD ONLY THIS USER'S DOCUMENTS
+      // -------------------------------------------------
+
+      await loadDocuments();
 
 
       navigate("home");
@@ -1111,6 +1146,8 @@ function App() {
 
     setPassword("");
 
+    setDocuments([]);
+
     setSelectedDocument(null);
 
     navigate("login");
@@ -1135,63 +1172,107 @@ function App() {
 
   // =====================================================
   // ADD DOCUMENT
+  //
+  // IMPORTANT:
+  // Document is now sent to the backend.
+  // It is NOT saved in localStorage.
   // =====================================================
 
-  const addDocument = (
+  const addDocument = async (
     document
   ) => {
 
-    const newDocument = {
-
-      ...document,
-
-      id: Date.now(),
-    };
-
-
-    setDocuments(
-      (previous) => [
-        newDocument,
-        ...previous,
-      ]
-    );
-
-
     try {
 
-      const existingDocuments =
-        JSON.parse(
-          localStorage.getItem(
-            "docgenie-documents"
-          ) || "[]"
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
         );
 
 
-      localStorage.setItem(
+      if (!token) {
 
-        "docgenie-documents",
+        alert(
+          "Please login again."
+        );
 
-        JSON.stringify([
-          newDocument,
-          ...existingDocuments,
-        ])
+        navigate("login");
+
+        return;
+      }
+
+
+      const response = await fetch(
+        "http://localhost:5000/api/documents",
+        {
+          method: "POST",
+
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify(document),
+        }
       );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        alert(
+          data.message ||
+          "Unable to add document."
+        );
+
+        return;
+      }
+
+
+      // -------------------------------------------------
+      // BACKEND SUCCESS
+      // -------------------------------------------------
+
+      if (data.document) {
+
+        setDocuments(
+          (previous) => [
+            data.document,
+            ...previous,
+          ]
+        );
+      }
+
+
+      navigate("documents");
 
     } catch (error) {
 
       console.error(
-        "Could not save document:",
+        "Add document error:",
         error
       );
+
+      alert(
+        "Unable to connect to the server."
+      );
     }
-
-
-    navigate("documents");
   };
 
 
   // =====================================================
   // DELETE DOCUMENT
+  //
+  // NOTE:
+  // Actual backend delete API will be connected
+  // when we implement document routes.
   // =====================================================
 
   const deleteDocument = (
@@ -1199,25 +1280,11 @@ function App() {
   ) => {
 
     setDocuments(
-      (previous) => {
-
-        const updatedDocuments =
-          previous.filter(
-            (document) =>
-              document.id !== id
-          );
-
-
-        localStorage.setItem(
-          "docgenie-documents",
-          JSON.stringify(
-            updatedDocuments
-          )
-        );
-
-
-        return updatedDocuments;
-      }
+      (previous) =>
+        previous.filter(
+          (document) =>
+            document.id !== id
+        )
     );
 
 
@@ -1407,26 +1474,32 @@ function App() {
 
 
       {/* =================================================
-    CREATE PASSWORD
-================================================= */}
+          CREATE PASSWORD
+      ================================================= */}
 
-{page === "create-password" && (
+      {page === "create-password" && (
 
-  <CreatePassword
+        <CreatePassword
 
-    account={account}
+          account={account}
 
-    updateAccount={updateAccount}
+          updateAccount={
+            updateAccount
+          }
 
-    onContinue={handleCreatePassword}
+          onContinue={
+            handleCreatePassword
+          }
 
-    onBack={() =>
-      navigate("verify-email")
-    }
+          onBack={() =>
+            navigate("verify-email")
+          }
 
-  />
+        />
 
-)}
+      )}
+
+
       {/* =================================================
           ACCOUNT CREATED
       ================================================= */}
@@ -1606,6 +1679,25 @@ function App() {
         />
 
       )}
+      {/* =================================================
+    SCAN DOCUMENT
+================================================= */}
+
+{page === "scan" && (
+
+  <ScanDocument
+
+    onNavigate={
+      navigate
+    }
+
+    onUpload={
+      addDocument
+    }
+
+  />
+
+)}
 
 
       {/* =================================================
