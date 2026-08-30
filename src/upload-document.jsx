@@ -15,33 +15,55 @@ function UploadDocument({
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [expiry, setExpiry] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] =
+    useState("");
+
+  // =====================================================
+  // FILE SELECTION
+  // =====================================================
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files?.[0];
+    const selectedFile =
+      e.target.files?.[0];
 
     if (!selectedFile) return;
 
     // Maximum 10 MB
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      alert("Please select a file smaller than 10 MB.");
+    if (
+      selectedFile.size >
+      10 * 1024 * 1024
+    ) {
+      alert(
+        "Please select a file smaller than 10 MB."
+      );
       return;
     }
 
     setFile(selectedFile);
 
-    // Automatically use filename as document name
+    // Automatically use filename
+    // as document name
     if (!name) {
-      const fileName = selectedFile.name
-        .replace(/\.[^/.]+$/, "");
+      const fileName =
+        selectedFile.name.replace(
+          /\.[^/.]+$/,
+          ""
+        );
 
       setName(fileName);
     }
   };
 
+  // =====================================================
+  // UPLOAD DOCUMENT
+  // =====================================================
+
   const submit = () => {
+
     if (!file) {
-      alert("Please select a document file.");
+      alert(
+        "Please select a document file."
+      );
       return;
     }
 
@@ -52,40 +74,93 @@ function UploadDocument({
       return;
     }
 
+    // ===================================================
+    // READ FILE
+    // ===================================================
+
     const reader = new FileReader();
 
     reader.onload = () => {
-      const fileData = reader.result;
 
-      onUpload({
-        name,
-        category,
+      const fileData =
+        reader.result;
 
-        date: new Date().toLocaleDateString(
-          "en-GB",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        ),
+      // =================================================
+      // CREATE DOCUMENT OBJECT
+      // =================================================
 
+      const newDocument = {
+
+        // Unique ID
+        id:
+          Date.now().toString() +
+          Math.random()
+            .toString(36)
+            .substring(2, 8),
+
+        // Document information
+        name: name.trim(),
+        category: category,
+
+        description:
+          description.trim(),
+
+        // Upload date
+        date:
+          new Date().toLocaleDateString(
+            "en-GB",
+            {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }
+          ),
+
+        // =================================================
+        // EXPIRY DATE
+        // =================================================
+
+        expiry: expiry || null,
+
+        // These are kept for your existing UI
         icon: "identity",
         color: "blue",
 
-        expiry,
-        description,
+        // =================================================
+        // FILE INFORMATION
+        // =================================================
 
-        // IMPORTANT
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
         fileData: fileData,
-      });
+      };
+
+      // =================================================
+      // SEND DOCUMENT TO APP.JSX
+      // =================================================
+
+      onUpload(newDocument);
+
+      // =================================================
+      // SUCCESS MESSAGE
+      // =================================================
+
+      alert(
+        "Document uploaded successfully!"
+      );
+
+      // =================================================
+      // GO BACK TO HOME
+      // =================================================
+
+      onNavigate("home");
     };
 
     reader.onerror = () => {
-      alert("Unable to read the selected file.");
+      alert(
+        "Unable to read the selected file."
+      );
     };
 
     reader.readAsDataURL(file);
@@ -94,25 +169,40 @@ function UploadDocument({
   return (
     <div className="mobile-page">
 
-      {/* HEADER */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
       <header className="inner-header">
 
         <button
           className="back-button"
-          onClick={() => onNavigate("home")}
+          onClick={() =>
+            onNavigate("home")
+          }
         >
+
           <ChevronLeft size={23} />
+
         </button>
 
-        <h1>Upload Document</h1>
+        <h1>
+          Upload Document
+        </h1>
 
-        <div style={{ width: 24 }} />
+        <div
+          style={{
+            width: 24,
+          }}
+        />
 
       </header>
 
       <main className="page-content upload-content">
 
-        {/* FILE UPLOAD BOX */}
+        {/* =================================================
+            FILE UPLOAD BOX
+        ================================================= */}
 
         <label
           className="upload-box"
@@ -129,11 +219,16 @@ function UploadDocument({
 
           {!file && (
             <>
-              <span>or</span>
+              <span>
+                or
+              </span>
 
               <div className="choose-file-button">
+
                 <Upload size={16} />
+
                 Choose File
+
               </div>
             </>
           )}
@@ -150,14 +245,20 @@ function UploadDocument({
           id="document-file"
           type="file"
           hidden
-          onChange={handleFileChange}
+          onChange={
+            handleFileChange
+          }
         />
 
-        {/* DOCUMENT DETAILS */}
+        {/* =================================================
+            DOCUMENT DETAILS
+        ================================================= */}
 
         <h3 className="section-title">
           Document Details
         </h3>
+
+        {/* DOCUMENT NAME */}
 
         <div className="form-group">
 
@@ -169,11 +270,15 @@ function UploadDocument({
             placeholder="Enter document name"
             value={name}
             onChange={(e) =>
-              setName(e.target.value)
+              setName(
+                e.target.value
+              )
             }
           />
 
         </div>
+
+        {/* CATEGORY */}
 
         <div className="form-group">
 
@@ -184,7 +289,9 @@ function UploadDocument({
           <select
             value={category}
             onChange={(e) =>
-              setCategory(e.target.value)
+              setCategory(
+                e.target.value
+              )
             }
           >
 
@@ -220,6 +327,8 @@ function UploadDocument({
 
         </div>
 
+        {/* EXPIRY DATE */}
+
         <div className="form-group">
 
           <label>
@@ -232,15 +341,21 @@ function UploadDocument({
               type="date"
               value={expiry}
               onChange={(e) =>
-                setExpiry(e.target.value)
+                setExpiry(
+                  e.target.value
+                )
               }
             />
 
-            <CalendarDays size={18} />
+            <CalendarDays
+              size={18}
+            />
 
           </div>
 
         </div>
+
+        {/* DESCRIPTION */}
 
         <div className="form-group">
 
@@ -252,13 +367,17 @@ function UploadDocument({
             placeholder="Enter description"
             value={description}
             onChange={(e) =>
-              setDescription(e.target.value)
+              setDescription(
+                e.target.value
+              )
             }
           />
 
         </div>
 
-        {/* SUBMIT */}
+        {/* =================================================
+            SUBMIT
+        ================================================= */}
 
         <button
           className="upload-submit"

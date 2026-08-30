@@ -42,13 +42,76 @@ function VerifyEmail({
     }
   };
 
-  const verify = () => {
+  const verify = async () => {
     if (otp.join("").length !== 4) {
       alert("Please enter the 4-digit OTP.");
       return;
     }
 
-    onContinue();
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/verify-otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: account.email,
+            otp: otp.join(""),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // OTP verified successfully
+        onContinue();
+      } else {
+        alert(data.message || "Invalid OTP.");
+      }
+    } catch (error) {
+      console.error("Verify OTP Error:", error);
+      alert("Unable to connect to the server.");
+    }
+  };
+
+  const resendOTP = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/send-otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: account.email,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("A new OTP has been sent to your email.");
+
+        setOtp([
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        inputs.current[0]?.focus();
+      } else {
+        alert(data.message || "Unable to resend OTP.");
+      }
+    } catch (error) {
+      console.error("Resend OTP Error:", error);
+      alert("Unable to connect to the server.");
+    }
   };
 
   return (
@@ -114,7 +177,10 @@ function VerifyEmail({
           <ArrowRight size={19} />
         </button>
 
-        <button className="resend-button">
+        <button
+          className="resend-button"
+          onClick={resendOTP}
+        >
           Didn't receive the code? <b>Resend</b>
         </button>
 

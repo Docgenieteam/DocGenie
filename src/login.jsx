@@ -11,127 +11,45 @@ import {
   Fingerprint,
 } from "lucide-react";
 
-function Login({ onLogin, onCreateAccount }) {
+function Login({
+  onLogin,
+  onCreateAccount,
+  onBiometricLogin,
+}) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // =====================================================
-  // BIOMETRIC / PASSKEY LOGIN
+  // LOGIN
   // =====================================================
 
-  const handleBiometricLogin = async () => {
-    try {
-      // Check browser support
-      if (
-        !window.PublicKeyCredential ||
-        !navigator.credentials
-      ) {
-        alert(
-          "Biometric authentication is not supported in this browser."
-        );
-        return;
-      }
+  const handleLoginClick = () => {
+    const email = identifier.trim();
 
-      // Check if platform biometric/passkey authentication
-      // is available
-      const available =
-        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (!email || !password) {
+      alert("Please enter email and password.");
+      return;
+    }
 
-      if (!available) {
-        alert(
-          "Biometric authentication is not available on this device."
-        );
-        return;
-      }
+    // Send email and password to App.jsx
+    onLogin({
+      email: email,
+      password: password,
+    });
+  };
 
-      /*
-        DEMO biometric authentication.
+  // =====================================================
+  // BIOMETRIC LOGIN
+  // =====================================================
 
-        In a real production application, the challenge
-        must come from your backend server.
-      */
-
-      const challenge = new Uint8Array(32);
-
-      window.crypto.getRandomValues(challenge);
-
-      const userId = new Uint8Array(16);
-
-      window.crypto.getRandomValues(userId);
-
-      const credential =
-        await navigator.credentials.create({
-          publicKey: {
-            challenge: challenge,
-
-            rp: {
-              name: "DocGenie",
-            },
-
-            user: {
-              id: userId,
-              name:
-                identifier ||
-                "docgenie-user@example.com",
-              displayName:
-                identifier ||
-                "DocGenie User",
-            },
-
-            pubKeyCredParams: [
-              {
-                type: "public-key",
-                alg: -7,
-              },
-              {
-                type: "public-key",
-                alg: -257,
-              },
-            ],
-
-            authenticatorSelection: {
-              authenticatorAttachment:
-                "platform",
-              userVerification: "required",
-              residentKey: "required",
-              requireResidentKey: true,
-            },
-
-            timeout: 60000,
-
-            attestation: "none",
-          },
-        });
-
-      if (credential) {
-        // Save that biometric/passkey setup exists
-        localStorage.setItem(
-          "docgenie-biometric-enabled",
-          "true"
-        );
-
-        alert(
-          "Biometric authentication successful!"
-        );
-
-        onLogin();
-      }
-    } catch (error) {
-      console.error(
-        "Biometric authentication error:",
-        error
+  const handleBiometricLogin = () => {
+    if (onBiometricLogin) {
+      onBiometricLogin();
+    } else {
+      alert(
+        "Biometric login is not available right now."
       );
-
-      if (error.name === "NotAllowedError") {
-        alert(
-          "Biometric authentication was cancelled or not allowed."
-        );
-      } else {
-        alert(
-          "Biometric authentication failed. Please try again."
-        );
-      }
     }
   };
 
@@ -139,7 +57,9 @@ function Login({ onLogin, onCreateAccount }) {
     <div className="auth-page">
       <div className="auth-card">
 
-        {/* LOGO */}
+        {/* =================================================
+            LOGO
+        ================================================= */}
 
         <div
           className="auth-logo"
@@ -163,7 +83,9 @@ function Login({ onLogin, onCreateAccount }) {
           />
         </div>
 
-        {/* TITLE */}
+        {/* =================================================
+            TITLE
+        ================================================= */}
 
         <h1>Welcome Back</h1>
 
@@ -171,7 +93,9 @@ function Login({ onLogin, onCreateAccount }) {
           Secure • Organize • Access
         </p>
 
-        {/* EMAIL / PHONE */}
+        {/* =================================================
+            EMAIL / PHONE
+        ================================================= */}
 
         <div className="form-field">
           <label>
@@ -192,7 +116,9 @@ function Login({ onLogin, onCreateAccount }) {
           </div>
         </div>
 
-        {/* PASSWORD */}
+        {/* =================================================
+            PASSWORD
+        ================================================= */}
 
         <div className="form-field">
           <label>
@@ -213,6 +139,11 @@ function Login({ onLogin, onCreateAccount }) {
               onChange={(event) =>
                 setPassword(event.target.value)
               }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleLoginClick();
+                }
+              }}
             />
 
             <button
@@ -233,7 +164,9 @@ function Login({ onLogin, onCreateAccount }) {
           </div>
         </div>
 
-        {/* FORGOT PASSWORD */}
+        {/* =================================================
+            FORGOT PASSWORD
+        ================================================= */}
 
         <div className="forgot-row">
           <button
@@ -248,12 +181,14 @@ function Login({ onLogin, onCreateAccount }) {
           </button>
         </div>
 
-        {/* LOGIN */}
+        {/* =================================================
+            LOGIN BUTTON
+        ================================================= */}
 
         <button
           type="button"
           className="primary-button"
-          onClick={onLogin}
+          onClick={handleLoginClick}
         >
           Login
           <ArrowRight size={19} />
@@ -275,7 +210,9 @@ function Login({ onLogin, onCreateAccount }) {
           </span>
         </button>
 
-        {/* DIVIDER */}
+        {/* =================================================
+            DIVIDER
+        ================================================= */}
 
         <div className="or-divider">
           <span />
@@ -283,7 +220,9 @@ function Login({ onLogin, onCreateAccount }) {
           <span />
         </div>
 
-        {/* SOCIAL */}
+        {/* =================================================
+            SOCIAL LOGIN
+        ================================================= */}
 
         <div className="social-buttons">
 
@@ -322,7 +261,9 @@ function Login({ onLogin, onCreateAccount }) {
 
         </div>
 
-        {/* SIGN UP */}
+        {/* =================================================
+            SIGN UP
+        ================================================= */}
 
         <p className="bottom-auth-text">
           Don't have an account?

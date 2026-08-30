@@ -34,15 +34,90 @@ function Home({
   // NOTIFICATIONS
   notificationCount = 0,
 }) {
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const username = account?.name || "Username";
 
-  // =========================================
+  // =====================================================
+  // CALCULATE EXPIRY INFORMATION
+  // =====================================================
+
+  const getExpiryStatus = (expiryDate) => {
+    if (!expiryDate) {
+      return {
+        type: "none",
+        label: "No expiry date",
+        days: null,
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+
+    const difference =
+      expiry.getTime() - today.getTime();
+
+    const days = Math.ceil(
+      difference / (1000 * 60 * 60 * 24)
+    );
+
+    if (days < 0) {
+      return {
+        type: "expired",
+        label: "Expired",
+        days,
+      };
+    }
+
+    if (days === 0) {
+      return {
+        type: "today",
+        label: "Expires today",
+        days: 0,
+      };
+    }
+
+    if (days <= 30) {
+      return {
+        type: "soon",
+        label: `Expires in ${days} days`,
+        days,
+      };
+    }
+
+    return {
+      type: "upcoming",
+      label: `Expires in ${days} days`,
+      days,
+    };
+  };
+
+  // =====================================================
+  // ADD EXPIRY STATUS TO DOCUMENTS
+  // =====================================================
+
+  const documentsWithExpiry = documents.map((document) => ({
+    ...document,
+    expiryStatus: getExpiryStatus(document.expiry),
+  }));
+
+  // =====================================================
+  // EXPIRING DOCUMENTS
+  // =====================================================
+
+  const expiringDocuments = documentsWithExpiry.filter(
+    (document) =>
+      document.expiryStatus.type === "soon" ||
+      document.expiryStatus.type === "today"
+  );
+
+  // =====================================================
   // SEARCH DOCUMENTS
-  // =========================================
+  // =====================================================
 
   const filteredDocuments = documents.filter((document) => {
     const query = searchQuery.trim().toLowerCase();
@@ -69,24 +144,38 @@ function Home({
     );
   });
 
-  // =========================================
-  // OPEN DOCUMENT DETAILS
-  // =========================================
+  // =====================================================
+  // CATEGORY COUNT
+  // =====================================================
+
+  const getCategoryCount = (category) => {
+    return documents.filter(
+      (document) =>
+        (document?.category || "").toLowerCase() ===
+        category.toLowerCase()
+    ).length;
+  };
+
+  // =====================================================
+  // OPEN DOCUMENT
+  // =====================================================
 
   const handleDocumentClick = (document) => {
     setSearchQuery("");
     setMenuOpen(false);
 
-    // Send the selected document to App.jsx
-    onNavigate("document-details", document);
+    onNavigate(
+      "document-details",
+      document
+    );
   };
 
   return (
     <div className="mobile-page home-page">
 
-      {/* =========================================
+      {/* =================================================
           HEADER
-      ========================================= */}
+      ================================================= */}
 
       <header className="top-header">
 
@@ -98,15 +187,15 @@ function Home({
             type="button"
             className="menu-button"
             aria-label="Menu"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() =>
+              setMenuOpen(!menuOpen)
+            }
           >
             ☰
           </button>
 
           {menuOpen && (
             <div className="home-dropdown-menu">
-
-              {/* DOCUMENTS */}
 
               <button
                 type="button"
@@ -119,8 +208,6 @@ function Home({
                 <span>Documents</span>
               </button>
 
-              {/* EXPIRY */}
-
               <button
                 type="button"
                 onClick={() => {
@@ -131,8 +218,6 @@ function Home({
                 ⏰
                 <span>Expiry</span>
               </button>
-
-              {/* REMINDERS */}
 
               <button
                 type="button"
@@ -150,64 +235,54 @@ function Home({
 
         </div>
 
-
-        {/* =========================================
-            DOCGENIE BRAND
-        ========================================= */}
+        {/* DOCGENIE BRAND */}
 
         <div className="home-logo">
 
-  <img
-    src={docgenieLogo}
-    alt="DocGenie Logo"
-    className="docgenie-home-logo"
-  />
+          <img
+            src={docgenieLogo}
+            alt="DocGenie Logo"
+            className="docgenie-home-logo"
+          />
 
-  <span className="docgenie-home-name">
-    DocGenie
-  </span>
+          <span className="docgenie-home-name">
+            DocGenie
+          </span>
 
-</div>
+        </div>
 
-
-        {/* =========================================
-            NOTIFICATIONS
-        ========================================= */}
+        {/* NOTIFICATIONS */}
 
         <button
-  type="button"
-  className="notification-button"
-  onClick={() =>
-    onNavigate("reminders")
-  }
-  aria-label="Notifications"
->
+          type="button"
+          className="notification-button"
+          onClick={() =>
+            onNavigate("reminders")
+          }
+          aria-label="Notifications"
+        >
 
-  <Bell size={21} />
+          <Bell size={21} />
 
-  {notificationCount > 0 && (
-    <span className="notification-dot">
-      {notificationCount > 9
-        ? "9+"
-        : notificationCount}
-    </span>
-  )}
+          {expiringDocuments.length > 0 && (
+            <span className="notification-dot">
+              {expiringDocuments.length > 9
+                ? "9+"
+                : expiringDocuments.length}
+            </span>
+          )}
 
-</button>
+        </button>
 
       </header>
 
-
-      {/* =========================================
+      {/* =================================================
           CONTENT
-      ========================================= */}
+      ================================================= */}
 
       <main className="page-content home-content">
 
-
-        {/* =========================================
-            WELCOME
-        ========================================= */}
+        {/* WELCOME */}
 
         <section className="welcome-section">
 
@@ -225,7 +300,6 @@ function Home({
               justifyContent: "center",
               borderRadius: "50%",
             }}
-
             onKeyDown={(event) => {
               if (
                 event.key === "Enter" ||
@@ -237,7 +311,6 @@ function Home({
           >
 
             {profilePic ? (
-
               <img
                 src={profilePic}
                 alt="Profile"
@@ -249,15 +322,11 @@ function Home({
                   display: "block",
                 }}
               />
-
             ) : (
-
               <User size={24} />
-
             )}
 
           </div>
-
 
           <div>
 
@@ -273,10 +342,7 @@ function Home({
 
         </section>
 
-
-        {/* =========================================
-            SEARCH
-        ========================================= */}
+        {/* SEARCH */}
 
         <div className="search-box">
 
@@ -295,10 +361,7 @@ function Home({
 
         </div>
 
-
-        {/* =========================================
-            SEARCH RESULTS
-        ========================================= */}
+        {/* SEARCH RESULTS */}
 
         {searchQuery.trim() !== "" && (
 
@@ -312,99 +375,96 @@ function Home({
 
             {filteredDocuments.length > 0 ? (
 
-              filteredDocuments.map((document, index) => {
+              filteredDocuments.map(
+                (document, index) => {
 
-                const documentName =
-                  document?.name ||
-                  document?.title ||
-                  document?.fileName ||
-                  document?.filename ||
-                  `Document ${index + 1}`;
+                  const documentName =
+                    document?.name ||
+                    document?.title ||
+                    document?.fileName ||
+                    document?.filename ||
+                    `Document ${index + 1}`;
 
-                const category =
-                  document?.category ||
-                  document?.type ||
-                  "Document";
+                  const category =
+                    document?.category ||
+                    document?.type ||
+                    "Document";
 
-                return (
-
-                  <button
-                    key={
-                      document?.id ||
-                      document?.fileId ||
-                      index
-                    }
-                    type="button"
-                    className="search-result-item"
-                    onClick={() =>
-                      handleDocumentClick(document)
-                    }
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      padding: "12px",
-                      marginBottom: "8px",
-                      border: "none",
-                      borderRadius: "12px",
-                      background: "white",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-
-                    <div
+                  return (
+                    <button
+                      key={
+                        document?.id ||
+                        document?.fileId ||
+                        index
+                      }
+                      type="button"
+                      className="search-result-item"
+                      onClick={() =>
+                        handleDocumentClick(
+                          document
+                        )
+                      }
                       style={{
-                        width: "40px",
-                        height: "40px",
-                        minWidth: "40px",
-                        borderRadius: "10px",
+                        width: "100%",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        gap: "12px",
+                        padding: "12px",
+                        marginBottom: "8px",
+                        border: "none",
+                        borderRadius: "12px",
+                        background: "white",
+                        cursor: "pointer",
+                        textAlign: "left",
                       }}
                     >
 
-                      <FileText size={20} />
-
-                    </div>
-
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "3px",
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-
-                      <strong
+                      <div
                         style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          width: "40px",
+                          height: "40px",
+                          minWidth: "40px",
+                          borderRadius: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        {documentName}
-                      </strong>
+                        <FileText size={20} />
+                      </div>
 
-                      <span>
-                        {category}
-                      </span>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "3px",
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
 
-                    </div>
+                        <strong
+                          style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {documentName}
+                        </strong>
 
+                        <span>
+                          {category}
+                        </span>
 
-                    <ChevronRight size={18} />
+                      </div>
 
-                  </button>
+                      <ChevronRight size={18} />
 
-                );
-
-              })
+                    </button>
+                  );
+                }
+              )
 
             ) : (
 
@@ -436,15 +496,16 @@ function Home({
 
         )}
 
-
-        {/* =========================================
+        {/* =================================================
             TOTAL DOCUMENTS
-        ========================================= */}
+        ================================================= */}
 
         <button
           type="button"
           className="total-document-card"
-          onClick={() => onNavigate("documents")}
+          onClick={() =>
+            onNavigate("documents")
+          }
         >
 
           <div className="total-shield">
@@ -452,7 +513,6 @@ function Home({
             <ShieldCheck size={34} />
 
           </div>
-
 
           <div className="total-document-info">
 
@@ -465,20 +525,18 @@ function Home({
             </strong>
 
             <small>
-  {notificationCount} Expiring Soon
-</small>
+              {expiringDocuments.length} Expiring Soon
+            </small>
 
           </div>
-
 
           <ChevronRight size={22} />
 
         </button>
 
-
-        {/* =========================================
+        {/* =================================================
             QUICK ACTIONS
-        ========================================= */}
+        ================================================= */}
 
         <section className="quick-actions">
 
@@ -486,13 +544,13 @@ function Home({
 
           <button
             type="button"
-            onClick={() => onNavigate("upload")}
+            onClick={() =>
+              onNavigate("upload")
+            }
           >
 
             <div className="quick-action-icon">
-
               <Upload size={20} />
-
             </div>
 
             <span>
@@ -500,7 +558,6 @@ function Home({
             </span>
 
           </button>
-
 
           {/* SCAN */}
 
@@ -514,9 +571,7 @@ function Home({
           >
 
             <div className="quick-action-icon">
-
               <ScanLine size={20} />
-
             </div>
 
             <span>
@@ -524,7 +579,6 @@ function Home({
             </span>
 
           </button>
-
 
           {/* REMINDERS */}
 
@@ -539,9 +593,13 @@ function Home({
 
               <Bell size={20} />
 
-              <span className="action-notification">
-                1
-              </span>
+              {expiringDocuments.length > 0 && (
+                <span className="action-notification">
+                  {expiringDocuments.length > 9
+                    ? "9+"
+                    : expiringDocuments.length}
+                </span>
+              )}
 
             </div>
 
@@ -550,7 +608,6 @@ function Home({
             </span>
 
           </button>
-
 
           {/* SHARE */}
 
@@ -562,9 +619,7 @@ function Home({
           >
 
             <div className="quick-action-icon">
-
               <Share2 size={20} />
-
             </div>
 
             <span>
@@ -575,10 +630,9 @@ function Home({
 
         </section>
 
-
-        {/* =========================================
+        {/* =================================================
             DOCUMENT CATEGORIES
-        ========================================= */}
+        ================================================= */}
 
         <div className="section-header">
 
@@ -597,57 +651,67 @@ function Home({
 
         </div>
 
-
         <div className="category-grid">
 
           <Category
             icon={<FileText />}
             title="Identity"
-            count="6"
+            count={getCategoryCount(
+              "Identity"
+            )}
             color="blue"
           />
 
           <Category
             icon={<GraduationCap />}
             title="Education"
-            count="4"
+            count={getCategoryCount(
+              "Education"
+            )}
             color="red"
           />
 
           <Category
             icon={<Landmark />}
             title="Financial"
-            count="5"
+            count={getCategoryCount(
+              "Financial"
+            )}
             color="green"
           />
 
           <Category
             icon={<Heart />}
             title="Health"
-            count="3"
+            count={getCategoryCount(
+              "Health"
+            )}
             color="pink"
           />
 
           <Category
             icon={<House />}
             title="Property"
-            count="2"
+            count={getCategoryCount(
+              "Property"
+            )}
             color="orange"
           />
 
           <Category
             icon={<FolderOpen />}
             title="Others"
-            count="4"
+            count={getCategoryCount(
+              "Others"
+            )}
             color="purple"
           />
 
         </div>
 
-
-        {/* =========================================
+        {/* =================================================
             UPCOMING EXPIRY
-        ========================================= */}
+        ================================================= */}
 
         <div className="section-header">
 
@@ -666,91 +730,90 @@ function Home({
 
         </div>
 
+        {expiringDocuments.length > 0 ? (
 
-        {documents.filter(
-  (document) =>
-    document.expiryStatus &&
-    document.expiryStatus.type !== "none"
-  ).length > 0 ? (
+          expiringDocuments
+            .sort(
+              (a, b) =>
+                a.expiryStatus.days -
+                b.expiryStatus.days
+            )
+            .slice(0, 1)
+            .map((document) => (
 
-  documents
-    .filter(
-      (document) =>
-        document.expiryStatus &&
-        document.expiryStatus.type !== "none"
-    )
-    .slice(0, 1)
-    .map((document) => (
+              <button
+                key={
+                  document.id ||
+                  document.fileId ||
+                  document.name
+                }
+                type="button"
+                className="expiry-card"
+                onClick={() =>
+                  onNavigate(
+                    "document-details",
+                    document
+                  )
+                }
+              >
 
-      <button
-        key={document.id}
-        type="button"
-        className="expiry-card"
-        onClick={() =>
-          onNavigate(
-            "document-details",
-            document
-          )
-        }
-      >
+                <div className="expiry-icon">
 
-        <div className="expiry-icon">
+                  <BriefcaseBusiness size={19} />
 
-          <BriefcaseBusiness size={19} />
+                </div>
 
-        </div>
+                <div className="expiry-info">
 
-        <div className="expiry-info">
+                  <strong>
+                    {document.name}
+                  </strong>
 
-          <strong>
-            {document.name}
-          </strong>
+                  <span>
+                    {document.expiryStatus.label}
+                  </span>
 
-          <span>
-            {document.expiryStatus.label}
-          </span>
+                </div>
 
-        </div>
+                <ChevronRight size={19} />
 
-        <ChevronRight size={19} />
+              </button>
 
-      </button>
+            ))
 
-    ))
+        ) : (
 
-) : (
+          <div className="expiry-card">
 
-  <div className="expiry-card">
+            <div className="expiry-icon">
 
-    <div className="expiry-icon">
-      <ShieldCheck size={19} />
-    </div>
+              <ShieldCheck size={19} />
 
-    <div className="expiry-info">
+            </div>
 
-      <strong>
-        No Upcoming Expiry
-      </strong>
+            <div className="expiry-info">
 
-      <span>
-        Your documents are up to date.
-      </span>
+              <strong>
+                No Upcoming Expiry
+              </strong>
 
-    </div>
+              <span>
+                Your documents are up to date.
+              </span>
 
-  </div>
+            </div>
 
-)}
+          </div>
 
+        )}
 
         <div className="bottom-nav-space" />
 
       </main>
 
-
-      {/* =========================================
+      {/* =================================================
           BOTTOM NAVIGATION
-      ========================================= */}
+      ================================================= */}
 
       <BottomNavigation
         active="home"
@@ -762,9 +825,9 @@ function Home({
 }
 
 
-/* =============================================
+/* =====================================================
    CATEGORY
-============================================= */
+===================================================== */
 
 function Category({
   icon,
@@ -772,9 +835,7 @@ function Category({
   count,
   color,
 }) {
-
   return (
-
     <div
       className={`category-card ${color}`}
     >
@@ -800,20 +861,16 @@ function Category({
 }
 
 
-/* =============================================
+/* =====================================================
    BOTTOM NAVIGATION
-============================================= */
+===================================================== */
 
 export function BottomNavigation({
   active,
   onNavigate,
 }) {
-
   return (
-
     <nav className="bottom-navigation">
-
-      {/* HOME */}
 
       <button
         type="button"
@@ -835,9 +892,6 @@ export function BottomNavigation({
 
       </button>
 
-
-      {/* DOCUMENTS */}
-
       <button
         type="button"
         className={
@@ -858,9 +912,6 @@ export function BottomNavigation({
 
       </button>
 
-
-      {/* PLUS */}
-
       <button
         type="button"
         className="nav-add"
@@ -873,9 +924,6 @@ export function BottomNavigation({
         <Plus size={28} />
 
       </button>
-
-
-      {/* REMINDERS */}
 
       <button
         type="button"
@@ -893,9 +941,7 @@ export function BottomNavigation({
 
           <Bell size={20} />
 
-          <span>
-            1
-          </span>
+          {/* Notification number is handled by Home */}
 
         </div>
 
@@ -904,9 +950,6 @@ export function BottomNavigation({
         </span>
 
       </button>
-
-
-      {/* PROFILE */}
 
       <button
         type="button"
@@ -931,6 +974,5 @@ export function BottomNavigation({
     </nav>
   );
 }
-
 
 export default Home;

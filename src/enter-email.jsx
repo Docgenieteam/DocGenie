@@ -11,13 +11,38 @@ function EnterEmail({
   onContinue,
   onBack,
 }) {
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!account.email) {
       alert("Please enter your email address.");
       return;
     }
 
-    onContinue();
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/send-otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: account.email,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // OTP sent successfully
+        onContinue();
+      } else {
+        alert(data.message || "Unable to send OTP.");
+      }
+    } catch (error) {
+      console.error("Send OTP Error:", error);
+      alert("Unable to connect to the server.");
+    }
   };
 
   return (
