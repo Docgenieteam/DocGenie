@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const Document = require("../models/Document");
 
 // =====================================================
@@ -27,30 +30,53 @@ const getDocuments = async (req, res) => {
 };
 
 // =====================================================
-// CREATE DOCUMENT
+// CREATE / UPLOAD DOCUMENT
 // =====================================================
 
 const createDocument = async (req, res) => {
   try {
     const { name, category, date, icon, color, expiry, description } = req.body;
 
-    if (!name) {
+    // ---------------------------------------------------
+    // CHECK DOCUMENT NAME
+    // ---------------------------------------------------
+
+    if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
         message: "Document name is required.",
       });
     }
 
+    // ---------------------------------------------------
+    // CHECK FILE
+    // ---------------------------------------------------
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Document file is required.",
+      });
+    }
+
+    // ---------------------------------------------------
+    // CREATE DOCUMENT
+    // ---------------------------------------------------
+
     const document = await Document.create({
-      // IMPORTANT:
-      // Never take userId from frontend.
-      // Get it from authenticated user.
       userId: req.user._id,
 
-      name,
+      name: name.trim(),
+
       category: category || "Other",
 
-      date: date || "",
+      date:
+        date ||
+        new Date().toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
 
       icon: icon || "document",
 
@@ -58,20 +84,46 @@ const createDocument = async (req, res) => {
 
       expiry: expiry || "",
 
-      description: description || "",
+      description: description?.trim() || "",
+
+      // -------------------------------------------------
+      // FILE INFORMATION
+      // -------------------------------------------------
+
+      originalFileName: req.file.originalname,
+
+      storageKey: req.file.filename,
+
+      fileType: req.file.mimetype,
+
+      fileSize: req.file.size,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Document added successfully.",
+
+      message: "Document uploaded successfully.",
+
       document,
     });
   } catch (error) {
     console.error("Create document error:", error);
 
+    // ---------------------------------------------------
+    // DELETE UPLOADED FILE IF DATABASE SAVE FAILED
+    // ---------------------------------------------------
+
+    if (req.file?.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (deleteError) {
+        console.error("Unable to delete uploaded file:", deleteError);
+      }
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Unable to create document.",
+      message: "Unable to upload document.",
     });
   }
 };
@@ -84,10 +136,6 @@ const getDocument = async (req, res) => {
   try {
     const document = await Document.findOne({
       _id: req.params.id,
-
-      // VERY IMPORTANT
-      // User can only access
-      // their own document.
       userId: req.user._id,
     });
 
@@ -120,9 +168,6 @@ const deleteDocument = async (req, res) => {
   try {
     const document = await Document.findOneAndDelete({
       _id: req.params.id,
-
-      // IMPORTANT:
-      // Cannot delete another user's document.
       userId: req.user._id,
     });
 
@@ -131,6 +176,23 @@ const deleteDocument = async (req, res) => {
         success: false,
         message: "Document not found.",
       });
+    }
+
+    // ---------------------------------------------------
+    // DELETE PHYSICAL FILE
+    // ---------------------------------------------------
+
+    if (document.storageKey) {
+      const filePath = path.join(
+        __dirname,
+        "..",
+        "uploads",
+        document.storageKey,
+      );
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
     return res.status(200).json({

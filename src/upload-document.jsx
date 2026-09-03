@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import {
   ChevronLeft,
   CloudUpload,
@@ -12,11 +13,20 @@ function UploadDocument({
 }) {
   const [file, setFile] = useState(null);
 
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [expiry, setExpiry] = useState("");
+  const [name, setName] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("");
+
+  const [expiry, setExpiry] =
+    useState("");
+
   const [description, setDescription] =
     useState("");
+
+  const [uploading, setUploading] =
+    useState(false);
 
   // =====================================================
   // FILE SELECTION
@@ -26,7 +36,9 @@ function UploadDocument({
     const selectedFile =
       e.target.files?.[0];
 
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      return;
+    }
 
     // Maximum 10 MB
     if (
@@ -34,8 +46,31 @@ function UploadDocument({
       10 * 1024 * 1024
     ) {
       alert(
-        "Please select a file smaller than 10 MB."
+        "Please select a file smaller than 10 MB.",
       );
+
+      e.target.value = "";
+      return;
+    }
+
+    // Allowed file types
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (
+      !allowedTypes.includes(
+        selectedFile.type,
+      )
+    ) {
+      alert(
+        "Only JPG, PNG, WEBP and PDF files are allowed.",
+      );
+
+      e.target.value = "";
       return;
     }
 
@@ -47,7 +82,7 @@ function UploadDocument({
       const fileName =
         selectedFile.name.replace(
           /\.[^/.]+$/,
-          ""
+          "",
         );
 
       setName(fileName);
@@ -58,112 +93,168 @@ function UploadDocument({
   // UPLOAD DOCUMENT
   // =====================================================
 
-  const submit = () => {
-
+  const submit = async () => {
     if (!file) {
       alert(
-        "Please select a document file."
+        "Please select a document file.",
       );
       return;
     }
 
-    if (!name || !category) {
+    if (!name.trim() || !category) {
       alert(
-        "Please enter document name and category."
+        "Please enter document name and category.",
       );
       return;
     }
 
-    // ===================================================
-    // READ FILE
-    // ===================================================
+    if (uploading) {
+      return;
+    }
 
-    const reader = new FileReader();
+    setUploading(true);
 
-    reader.onload = () => {
-
-      const fileData =
-        reader.result;
-
+    try {
       // =================================================
-      // CREATE DOCUMENT OBJECT
+      // GET LOGIN TOKEN
       // =================================================
 
-      const newDocument = {
+      const token =
+        localStorage.getItem(
+          "token",
+        ) ||
+        localStorage.getItem(
+          "docgenie-token",
+        );
 
-        // Unique ID
-        id:
-          Date.now().toString() +
-          Math.random()
-            .toString(36)
-            .substring(2, 8),
+      if (!token) {
+        alert(
+          "Your session has expired. Please login again.",
+        );
 
-        // Document information
-        name: name.trim(),
-        category: category,
-
-        description:
-          description.trim(),
-
-        // Upload date
-        date:
-          new Date().toLocaleDateString(
-            "en-GB",
-            {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            }
-          ),
-
-        // =================================================
-        // EXPIRY DATE
-        // =================================================
-
-        expiry: expiry || null,
-
-        // These are kept for your existing UI
-        icon: "identity",
-        color: "blue",
-
-        // =================================================
-        // FILE INFORMATION
-        // =================================================
-
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        fileData: fileData,
-      };
+        setUploading(false);
+        return;
+      }
 
       // =================================================
-      // SEND DOCUMENT TO APP.JSX
+      // CREATE FORMDATA
       // =================================================
 
-      onUpload(newDocument);
+      const formData =
+        new FormData();
 
-      // =================================================
-      // SUCCESS MESSAGE
-      // =================================================
+      formData.append(
+        "file",
+        file,
+      );
 
-      alert(
-        "Document uploaded successfully!"
+      formData.append(
+        "name",
+        name.trim(),
+      );
+
+      formData.append(
+        "category",
+        category,
+      );
+
+      formData.append(
+        "expiry",
+        expiry || "",
+      );
+
+      formData.append(
+        "description",
+        description.trim(),
+      );
+
+      formData.append(
+        "date",
+        new Date().toLocaleDateString(
+          "en-GB",
+          {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          },
+        ),
+      );
+
+      formData.append(
+        "icon",
+        "identity",
+      );
+
+      formData.append(
+        "color",
+        "blue",
       );
 
       // =================================================
-      // GO BACK TO HOME
+      // SEND TO BACKEND
+      // =================================================
+
+      const response =
+        await fetch(
+          "http://localhost:5000/api/documents",
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: formData,
+          },
+        );
+
+      // =================================================
+      // READ RESPONSE
+      // =================================================
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Unable to upload document.",
+        );
+      }
+
+      // =================================================
+      // SEND SAVED DOCUMENT TO APP
+      // =================================================
+
+      if (onUpload) {
+        onUpload(
+          data.document,
+        );
+      }
+
+      alert(
+        "Document uploaded successfully!",
+      );
+
+      // =================================================
+      // GO HOME
       // =================================================
 
       onNavigate("home");
-    };
-
-    reader.onerror = () => {
-      alert(
-        "Unable to read the selected file."
+    } catch (error) {
+      console.error(
+        "Upload error:",
+        error,
       );
-    };
 
-    reader.readAsDataURL(file);
+      alert(
+        error.message ||
+          "Unable to connect to the server. Please try again.",
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -181,9 +272,7 @@ function UploadDocument({
             onNavigate("home")
           }
         >
-
           <ChevronLeft size={23} />
-
         </button>
 
         <h1>
@@ -245,6 +334,7 @@ function UploadDocument({
           id="document-file"
           type="file"
           hidden
+          accept=".jpg,.jpeg,.png,.webp,.pdf"
           onChange={
             handleFileChange
           }
@@ -271,7 +361,7 @@ function UploadDocument({
             value={name}
             onChange={(e) =>
               setName(
-                e.target.value
+                e.target.value,
               )
             }
           />
@@ -290,7 +380,7 @@ function UploadDocument({
             value={category}
             onChange={(e) =>
               setCategory(
-                e.target.value
+                e.target.value,
               )
             }
           >
@@ -342,7 +432,7 @@ function UploadDocument({
               value={expiry}
               onChange={(e) =>
                 setExpiry(
-                  e.target.value
+                  e.target.value,
                 )
               }
             />
@@ -368,7 +458,7 @@ function UploadDocument({
             value={description}
             onChange={(e) =>
               setDescription(
-                e.target.value
+                e.target.value,
               )
             }
           />
@@ -382,11 +472,14 @@ function UploadDocument({
         <button
           className="upload-submit"
           onClick={submit}
+          disabled={uploading}
         >
 
           <Upload size={18} />
 
-          Upload Document
+          {uploading
+            ? "Uploading..."
+            : "Upload Document"}
 
         </button>
 

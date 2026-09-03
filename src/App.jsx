@@ -8,12 +8,8 @@ import {
 // FIREBASE
 // =====================================================
 
-import { initializeApp } from "firebase/app";
-import {
-  getMessaging,
-  getToken,
-  onMessage,
-} from "firebase/messaging";
+import { getToken, onMessage } from "firebase/messaging";
+import { messaging } from "./firebase";
 
 // =====================================================
 // AUTHENTICATION PAGES
@@ -38,7 +34,6 @@ import Profile from "./profile.jsx";
 import Documents from "./documents.jsx";
 import DocumentDetails from "./document-details.jsx";
 import UploadDocument from "./upload-document.jsx";
-import ScanDocument from "./scan-document.jsx";
 import ShareDocument from "./share-document.jsx";
 import Reminders from "./reminders.jsx";
 
@@ -48,63 +43,6 @@ import Reminders from "./reminders.jsx";
 
 import "./app.css";
 import "./pages.css";
-
-
-// =====================================================
-// FIREBASE CONFIG
-// =====================================================
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAMH7pWSSaYZdFHAYM0EadQRVw6oK4Lkuw",
-  authDomain: "docgenie-2eccc.firebaseapp.com",
-  projectId: "docgenie-2eccc",
-  storageBucket: "docgenie-2eccc.firebasestorage.app",
-  messagingSenderId: "135177457344",
-  appId: "1:135177457344:web:48a091dc4616798286e725",
-  measurementId: "G-E5SWWERQ82",
-};
-
-
-// =====================================================
-// INITIALIZE FIREBASE
-// =====================================================
-
-const firebaseApp = initializeApp(firebaseConfig);
-
-
-// =====================================================
-// FIREBASE CLOUD MESSAGING
-// =====================================================
-
-let messaging = null;
-
-try {
-  messaging = getMessaging(firebaseApp);
-} catch (error) {
-  console.error(
-    "Firebase Messaging initialization failed:",
-    error
-  );
-}
-
-
-// =====================================================
-// VAPID KEY
-//
-// IMPORTANT:
-// Replace this with the Web Push certificate key
-// from Firebase Console.
-//
-// Firebase Console:
-// Project Settings
-// → Cloud Messaging
-// → Web configuration
-// → Web Push certificates
-// =====================================================
-
-const VAPID_KEY =
-  import.meta.env.VITE_FIREBASE_VAPID_KEY || "";
-
 
 
 function App() {
@@ -154,12 +92,11 @@ function App() {
 
 
   // =====================================================
-  // FCM TOKEN
+  // SELECTED DOCUMENT
   // =====================================================
 
-  const [fcmToken, setFcmToken] = useState(
-    localStorage.getItem("docgenie-fcm-token") || ""
-  );
+  const [selectedDocument, setSelectedDocument] =
+    useState(null);
 
 
   // =====================================================
@@ -178,11 +115,9 @@ function App() {
       };
     }
 
-
     const today = new Date();
 
     today.setHours(0, 0, 0, 0);
-
 
     const parts = expiry.split("-");
 
@@ -196,11 +131,9 @@ function App() {
       };
     }
 
-
     const year = Number(parts[0]);
     const month = Number(parts[1]) - 1;
     const day = Number(parts[2]);
-
 
     const expiryDate = new Date(
       year,
@@ -210,15 +143,13 @@ function App() {
 
     expiryDate.setHours(0, 0, 0, 0);
 
-
     const difference =
       expiryDate.getTime() -
       today.getTime();
 
-
     const daysRemaining = Math.ceil(
       difference /
-      (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24)
     );
 
 
@@ -240,7 +171,9 @@ function App() {
           daysRemaining === 0
             ? "Expires today"
             : `Expiring in ${daysRemaining} day${
-                daysRemaining === 1 ? "" : "s"
+                daysRemaining === 1
+                  ? ""
+                  : "s"
               }`,
         icon: "🟠",
         className: "expiry-7",
@@ -252,8 +185,7 @@ function App() {
     if (daysRemaining <= 30) {
       return {
         type: "30-days",
-        label:
-          `Expiring in ${daysRemaining} days`,
+        label: `Expiring in ${daysRemaining} days`,
         icon: "🟡",
         className: "expiry-30",
         daysRemaining,
@@ -264,8 +196,7 @@ function App() {
     if (daysRemaining <= 90) {
       return {
         type: "90-days",
-        label:
-          `Expiring in ${daysRemaining} days`,
+        label: `Expiring in ${daysRemaining} days`,
         icon: "🔵",
         className: "expiry-90",
         daysRemaining,
@@ -290,9 +221,11 @@ function App() {
   const documentsWithExpiryStatus =
     documents.map((document) => ({
       ...document,
-      expiryStatus: getExpiryStatus(
-        document.expiry
-      ),
+
+      expiryStatus:
+        getExpiryStatus(
+          document.expiry
+        ),
     }));
 
 
@@ -318,62 +251,119 @@ function App() {
 
 
   // =====================================================
-  // REGISTER FCM TOKEN WITH BACKEND
+  // SAVE FCM TOKEN TO BACKEND
   // =====================================================
 
-  const registerFCMToken = async (token = null) => {
+  const registerFCMToken = async () => {
 
     try {
 
-      const authToken =
+      const token =
         localStorage.getItem(
           "docgenie-token"
         );
 
-
-      if (!authToken) {
+      // User must be logged in
+      if (!token) {
         console.log(
-          "No authentication token. FCM token will not be registered."
+          "FCM: User is not logged in."
         );
 
-        return false;
+        return;
       }
 
 
-      const tokenToSend =
-        token ||
-        localStorage.getItem(
-          "docgenie-fcm-token"
-        );
-
-
-      if (!tokenToSend) {
+      // Check browser support
+      if (
+        !("Notification" in window)
+      ) {
         console.log(
-          "No FCM token available."
+          "FCM: Browser notifications are not supported."
         );
 
-        return false;
+        return;
       }
 
 
-      const response = await fetch(
-        "http://localhost:5000/api/notifications/fcm-token",
-        {
-          method: "POST",
+      // -------------------------------------------------
+      // ASK NOTIFICATION PERMISSION
+      // -------------------------------------------------
 
-          headers: {
-            Authorization:
-              `Bearer ${authToken}`,
+      let permission =
+        Notification.permission;
 
-            "Content-Type":
-              "application/json",
-          },
 
-          body: JSON.stringify({
-            fcmToken: tokenToSend,
-          }),
-        }
+      if (permission === "default") {
+
+        permission =
+          await Notification.requestPermission();
+      }
+
+
+      if (permission !== "granted") {
+
+        console.log(
+          "FCM: Notification permission was not granted."
+        );
+
+        return;
+      }
+
+
+      // -------------------------------------------------
+      // GET FIREBASE FCM TOKEN
+      // -------------------------------------------------
+
+      const fcmToken =
+        await getToken(
+          messaging,
+          {
+            vapidKey:
+              import.meta.env
+                .VITE_FIREBASE_VAPID_KEY,
+          }
+        );
+
+
+      if (!fcmToken) {
+
+        console.log(
+          "FCM: Unable to get FCM token."
+        );
+
+        return;
+      }
+
+
+      console.log(
+        "FCM token received:",
+        fcmToken
       );
+
+
+      // -------------------------------------------------
+      // SAVE TOKEN IN BACKEND
+      // -------------------------------------------------
+
+      const response =
+        await fetch(
+          "http://localhost:5000/api/notifications/fcm-token",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              token: fcmToken,
+            }),
+          }
+        );
 
 
       const data =
@@ -383,144 +373,30 @@ function App() {
       if (!response.ok) {
 
         console.error(
-          "Unable to register FCM token:",
-          data.message
-        );
-
-        return false;
-      }
-
-
-      console.log(
-        "FCM token registered successfully."
-      );
-
-      return true;
-
-    } catch (error) {
-
-      console.error(
-        "FCM token registration error:",
-        error
-      );
-
-      return false;
-    }
-  };
-
-
-  // =====================================================
-  // REQUEST FCM PERMISSION
-  // =====================================================
-
-  const setupFCM = async () => {
-
-    try {
-
-      if (!messaging) {
-
-        console.log(
-          "Firebase Messaging is not available."
+          "FCM token save failed:",
+          data
         );
 
         return;
       }
 
 
-      if (!("Notification" in window)) {
-
-        console.log(
-          "Browser notifications are not supported."
-        );
-
-        return;
-      }
-
-
-      // -------------------------------------------------
-      // REQUEST NOTIFICATION PERMISSION
-      // -------------------------------------------------
-
-      const permission =
-        await Notification.requestPermission();
-
-
-      if (permission !== "granted") {
-
-        console.log(
-          "Notification permission was not granted."
-        );
-
-        return;
-      }
-
-
-      // -------------------------------------------------
-      // VAPID KEY CHECK
-      // -------------------------------------------------
-
-      if (!VAPID_KEY) {
-
-        console.error(
-          "Firebase VAPID key is missing."
-        );
-
-        return;
-      }
-
-
-      // -------------------------------------------------
-      // GET FCM TOKEN
-      // -------------------------------------------------
-
-      const token =
-        await getToken(
-          messaging,
-          {
-            vapidKey: VAPID_KEY,
-          }
-        );
-
-
-      if (!token) {
-
-        console.log(
-          "Unable to get FCM registration token."
-        );
-
-        return;
-      }
-
-
-      console.log(
-        "FCM Token:",
-        token
-      );
-
-
-      // -------------------------------------------------
-      // SAVE TOKEN LOCALLY
-      // -------------------------------------------------
-
+      // Save locally so we know
+      // this browser already registered.
       localStorage.setItem(
         "docgenie-fcm-token",
-        token
+        fcmToken
       );
 
 
-      setFcmToken(token);
-
-
-      // -------------------------------------------------
-      // SEND TOKEN TO BACKEND
-      // -------------------------------------------------
-
-      await registerFCMToken(token);
+      console.log(
+        "FCM token saved successfully."
+      );
 
     } catch (error) {
 
       console.error(
-        "FCM setup error:",
+        "FCM registration error:",
         error
       );
     }
@@ -528,7 +404,7 @@ function App() {
 
 
   // =====================================================
-  // FOREGROUND FCM MESSAGES
+  // FCM FOREGROUND MESSAGE
   // =====================================================
 
   useEffect(() => {
@@ -538,107 +414,120 @@ function App() {
     }
 
 
-    const unsubscribe =
-      onMessage(
-        messaging,
-        (payload) => {
-
-          console.log(
-            "FCM foreground message:",
-            payload
-          );
+    let unsubscribe;
 
 
-          const title =
-            payload.notification?.title ||
-            "DocGenie Expiry Alert";
+    try {
 
+      unsubscribe =
+        onMessage(
+          messaging,
+          (payload) => {
 
-          const body =
-            payload.notification?.body ||
-            "You have a document expiry reminder.";
-
-
-          // -------------------------------------------------
-          // SHOW NOTIFICATION WHEN APP IS OPEN
-          // -------------------------------------------------
-
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-
-            new Notification(
-              title,
-              {
-                body,
-                icon: "/docgenie-logo.png",
-              }
+            console.log(
+              "FCM foreground message:",
+              payload
             );
 
-          } else {
 
-            // Fallback
-            alert(
-              `${title}\n\n${body}`
-            );
+            const title =
+              payload.notification?.title ||
+              "DocGenie";
+
+
+            const body =
+              payload.notification?.body ||
+              "You have a new notification.";
+
+
+            // -------------------------------------------------
+            // SHOW BROWSER NOTIFICATION
+            // -------------------------------------------------
+
+            if (
+              Notification.permission ===
+              "granted"
+            ) {
+
+              new Notification(
+                title,
+                {
+                  body,
+                  icon:
+                    "/docgenie-logo.png",
+                }
+              );
+
+            } else {
+
+              // Fallback
+              console.log(
+                `${title}: ${body}`
+              );
+            }
 
           }
+        );
 
-        }
+    } catch (error) {
+
+      console.error(
+        "FCM foreground listener error:",
+        error
       );
+
+    }
 
 
     return () => {
-      unsubscribe();
+
+      if (unsubscribe) {
+        unsubscribe();
+      }
+
     };
 
   }, []);
 
 
   // =====================================================
-  // SETUP FCM AFTER USER LOGIN
+  // REGISTER FCM WHEN USER IS LOGGED IN
   // =====================================================
 
   useEffect(() => {
 
-    const token =
-      localStorage.getItem(
-        "docgenie-token"
-      );
-
-
-    const loggedIn =
-      localStorage.getItem(
-        "isLoggedIn"
-      );
-
-
     if (
-      token &&
-      loggedIn === "true"
+      page !== "home" &&
+      page !== "documents" &&
+      page !== "profile" &&
+      page !== "reminders"
     ) {
-
-      setupFCM();
-
+      return;
     }
 
-  }, []);
+
+    if (!account.email) {
+      return;
+    }
+
+
+    registerFCMToken();
+
+  }, [
+    page,
+    account.email,
+  ]);
 
 
   // =====================================================
   // BROWSER EXPIRY NOTIFICATIONS
-  //
-  // TEMPORARY LOCAL FALLBACK
-  //
-  // The actual production expiry notification
-  // will come from the backend through FCM.
   // =====================================================
 
   const sendExpiryNotifications = () => {
 
-    if (!("Notification" in window)) {
-
+    if (
+      !("Notification" in window)
+    ) {
       console.log(
         "Browser notifications are not supported."
       );
@@ -652,19 +541,18 @@ function App() {
       "default"
     ) {
 
-      Notification.requestPermission()
-        .then((permission) => {
+      Notification.requestPermission().then(
+        (permission) => {
 
           if (
             permission ===
             "granted"
           ) {
-
             showExpiryNotifications();
-
           }
 
-        });
+        }
+      );
 
       return;
     }
@@ -674,9 +562,7 @@ function App() {
       Notification.permission ===
       "granted"
     ) {
-
       showExpiryNotifications();
-
     }
   };
 
@@ -707,16 +593,6 @@ function App() {
 
 
   // =====================================================
-  // SELECTED DOCUMENT
-  // =====================================================
-
-  const [
-    selectedDocument,
-    setSelectedDocument,
-  ] = useState(null);
-
-
-  // =====================================================
   // NAVIGATION
   // =====================================================
 
@@ -726,12 +602,12 @@ function App() {
   ) => {
 
     if (document) {
-      setSelectedDocument(document);
+      setSelectedDocument(
+        document
+      );
     }
 
-
     setPage(nextPage);
-
 
     window.scrollTo({
       top: 0,
@@ -745,17 +621,20 @@ function App() {
   // PROFILE PICTURE CHANGE
   // =====================================================
 
-  const handleProfilePicChange = (e) => {
+  const handleProfilePicChange = (
+    e
+  ) => {
 
     const file =
       e.target.files?.[0];
-
 
     if (!file) return;
 
 
     if (
-      !file.type.startsWith("image/")
+      !file.type.startsWith(
+        "image/"
+      )
     ) {
 
       alert(
@@ -796,7 +675,6 @@ function App() {
         "docgenie-profile-pic",
         image
       );
-
     };
 
 
@@ -805,7 +683,6 @@ function App() {
       alert(
         "Unable to read the selected image."
       );
-
     };
 
 
@@ -822,7 +699,6 @@ function App() {
   const openProfilePicker = () => {
 
     profileInputRef.current?.click();
-
   };
 
 
@@ -834,11 +710,9 @@ function App() {
 
     setProfilePic("");
 
-
     localStorage.removeItem(
       "docgenie-profile-pic"
     );
-
   };
 
 
@@ -846,7 +720,9 @@ function App() {
   // UPDATE ACCOUNT
   // =====================================================
 
-  const updateAccount = (data) => {
+  const updateAccount = (
+    data
+  ) => {
 
     setAccount(
       (previous) => ({
@@ -854,16 +730,89 @@ function App() {
         ...data,
       })
     );
+  };
+
+
+  // =====================================================
+  // LOAD USER DOCUMENTS FROM BACKEND
+  // =====================================================
+
+  const loadDocuments = async () => {
+
+    try {
+
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
+        );
+
+
+      if (!token) {
+
+        setDocuments([]);
+
+        return;
+      }
+
+
+      const response =
+        await fetch(
+          "http://localhost:5000/api/documents",
+          {
+            method: "GET",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        console.error(
+          "Unable to load documents:",
+          data
+        );
+
+        setDocuments([]);
+
+        return;
+      }
+
+
+      setDocuments(
+        data.documents || []
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Load documents error:",
+        error
+      );
+
+      setDocuments([]);
+
+    }
 
   };
 
 
   // =====================================================
-  // CREATE PASSWORD
+  // CREATE PASSWORD / REGISTER
   // =====================================================
 
   const handleCreatePassword =
-    async (newPassword) => {
+    async (
+      newPassword
+    ) => {
 
       try {
 
@@ -893,23 +842,22 @@ function App() {
                   "application/json",
               },
 
-              body:
-                JSON.stringify({
-                  name:
-                    account.name,
+              body: JSON.stringify({
+                name:
+                  account.name,
 
-                  age:
-                    account.age,
+                age:
+                  account.age,
 
-                  phone:
-                    account.phone,
+                phone:
+                  account.phone,
 
-                  email:
-                    account.email,
+                email:
+                  account.email,
 
-                  password:
-                    newPassword,
-                }),
+                password:
+                  newPassword,
+              }),
             }
           );
 
@@ -922,7 +870,7 @@ function App() {
 
           alert(
             data.message ||
-            "Unable to create account."
+              "Unable to create account."
           );
 
           return;
@@ -932,6 +880,7 @@ function App() {
         navigate(
           "account-created"
         );
+
 
       } catch (error) {
 
@@ -944,90 +893,7 @@ function App() {
         alert(
           "Unable to connect to the server. Please try again."
         );
-
       }
-
-    };
-
-
-  // =====================================================
-  // LOAD USER DOCUMENTS
-  // =====================================================
-
-  const loadDocuments =
-    async () => {
-
-      try {
-
-        const token =
-          localStorage.getItem(
-            "docgenie-token"
-          );
-
-
-        if (!token) {
-
-          setDocuments([]);
-
-          return;
-        }
-
-
-        const response =
-          await fetch(
-            "http://localhost:5000/api/documents",
-            {
-              method: "GET",
-
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-
-                "Content-Type":
-                  "application/json",
-              },
-            }
-          );
-
-
-        const data =
-          await response.json();
-
-
-        if (!response.ok) {
-
-          console.error(
-            "Unable to load documents:",
-            data.message
-          );
-
-
-          setDocuments([]);
-
-          return;
-        }
-
-
-        setDocuments(
-          Array.isArray(
-            data.documents
-          )
-            ? data.documents
-            : []
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Load documents error:",
-          error
-        );
-
-
-        setDocuments([]);
-
-      }
-
     };
 
 
@@ -1036,7 +902,9 @@ function App() {
   // =====================================================
 
   const handleLogin =
-    async (credentials) => {
+    async (
+      credentials
+    ) => {
 
       try {
 
@@ -1061,6 +929,10 @@ function App() {
         }
 
 
+        // -------------------------------------------------
+        // LOGIN REQUEST
+        // -------------------------------------------------
+
         const response =
           await fetch(
             "http://localhost:5000/api/auth/login",
@@ -1072,12 +944,11 @@ function App() {
                   "application/json",
               },
 
-              body:
-                JSON.stringify({
-                  email,
-                  password:
-                    loginPassword,
-                }),
+              body: JSON.stringify({
+                email,
+                password:
+                  loginPassword,
+              }),
             }
           );
 
@@ -1090,15 +961,20 @@ function App() {
 
           alert(
             data.message ||
-            "Invalid email or password."
+              "Invalid email or password."
           );
 
           return;
         }
 
 
+        // -------------------------------------------------
+        // LOGIN SUCCESSFUL
+        // -------------------------------------------------
+
         const loggedInUser =
-          data.user || data;
+          data.user ||
+          data;
 
 
         setAccount({
@@ -1120,6 +996,10 @@ function App() {
         });
 
 
+        // -------------------------------------------------
+        // SAVE JWT
+        // -------------------------------------------------
+
         localStorage.setItem(
           "isLoggedIn",
           "true"
@@ -1137,23 +1017,21 @@ function App() {
 
 
         // -------------------------------------------------
-        // LOAD USER DOCUMENTS
+        // IMPORTANT
         // -------------------------------------------------
+
+        // Do NOT load documents from
+        // localStorage.
+        //
+        // Documents belong to the
+        // authenticated MongoDB user.
+
 
         await loadDocuments();
 
 
-        // -------------------------------------------------
-        // SETUP FCM
-        //
-        // This obtains the device/browser token and
-        // sends it to the backend.
-        // -------------------------------------------------
-
-        await setupFCM();
-
-
         navigate("home");
+
 
       } catch (error) {
 
@@ -1166,9 +1044,7 @@ function App() {
         alert(
           "Unable to connect to the server. Please try again."
         );
-
       }
-
     };
 
 
@@ -1185,9 +1061,7 @@ function App() {
           !window.PublicKeyCredential ||
           !navigator.credentials
         ) {
-
           return false;
-
         }
 
 
@@ -1212,11 +1086,8 @@ function App() {
           error
         );
 
-
         return false;
-
       }
-
     };
 
 
@@ -1224,62 +1095,61 @@ function App() {
   // BUFFER TO BASE64
   // =====================================================
 
-  const bufferToBase64 =
-    (buffer) => {
+  const bufferToBase64 = (
+    buffer
+  ) => {
 
-      const bytes =
-        new Uint8Array(buffer);
+    const bytes =
+      new Uint8Array(buffer);
 
-      let binary = "";
-
-
-      bytes.forEach(
-        (byte) => {
-          binary +=
-            String.fromCharCode(
-              byte
-            );
-        }
-      );
+    let binary = "";
 
 
-      return btoa(binary);
+    bytes.forEach(
+      (byte) => {
+        binary +=
+          String.fromCharCode(
+            byte
+          );
+      }
+    );
 
-    };
+
+    return btoa(binary);
+  };
 
 
   // =====================================================
   // BASE64 TO BUFFER
   // =====================================================
 
-  const base64ToBuffer =
-    (base64) => {
+  const base64ToBuffer = (
+    base64
+  ) => {
 
-      const binary =
-        atob(base64);
-
-
-      const bytes =
-        new Uint8Array(
-          binary.length
-        );
+    const binary =
+      atob(base64);
 
 
-      for (
-        let i = 0;
-        i < binary.length;
-        i++
-      ) {
-
-        bytes[i] =
-          binary.charCodeAt(i);
-
-      }
+    const bytes =
+      new Uint8Array(
+        binary.length
+      );
 
 
-      return bytes;
+    for (
+      let i = 0;
+      i < binary.length;
+      i++
+    ) {
 
-    };
+      bytes[i] =
+        binary.charCodeAt(i);
+    }
+
+
+    return bytes;
+  };
 
 
   // =====================================================
@@ -1303,7 +1173,6 @@ function App() {
           );
 
           return;
-
         }
 
 
@@ -1333,8 +1202,7 @@ function App() {
 
                 user: {
 
-                  id:
-                    userId,
+                  id: userId,
 
                   name:
                     account.email ||
@@ -1344,7 +1212,6 @@ function App() {
                   displayName:
                     account.name ||
                     "DocGenie User",
-
                 },
 
                 pubKeyCredParams: [
@@ -1377,7 +1244,6 @@ function App() {
 
                   residentKey:
                     "preferred",
-
                 },
 
                 timeout:
@@ -1385,7 +1251,6 @@ function App() {
 
                 attestation:
                   "none",
-
               },
             });
 
@@ -1397,7 +1262,6 @@ function App() {
           );
 
           return;
-
         }
 
 
@@ -1423,6 +1287,7 @@ function App() {
           "Biometric login enabled successfully!"
         );
 
+
       } catch (error) {
 
         console.error(
@@ -1434,9 +1299,7 @@ function App() {
         alert(
           "Biometric setup failed or was cancelled."
         );
-
       }
-
     };
 
 
@@ -1472,7 +1335,6 @@ function App() {
           );
 
           return;
-
         }
 
 
@@ -1488,7 +1350,6 @@ function App() {
           );
 
           return;
-
         }
 
 
@@ -1525,9 +1386,7 @@ function App() {
 
                 timeout:
                   60000,
-
               },
-
             });
 
 
@@ -1538,11 +1397,41 @@ function App() {
           );
 
           return;
-
         }
 
 
+        // -------------------------------------------------
+        // IMPORTANT
+        // -------------------------------------------------
+        //
+        // The existing biometric implementation
+        // does not create a JWT token.
+        //
+        // Therefore, only navigate if a JWT
+        // already exists.
+
+
+        const token =
+          localStorage.getItem(
+            "docgenie-token"
+          );
+
+
+        if (!token) {
+
+          alert(
+            "Please login with your email and password once before using biometric login."
+          );
+
+          return;
+        }
+
+
+        await loadDocuments();
+
+
         navigate("home");
+
 
       } catch (error) {
 
@@ -1555,9 +1444,7 @@ function App() {
         alert(
           "Biometric authentication failed or was cancelled."
         );
-
       }
-
     };
 
 
@@ -1571,7 +1458,6 @@ function App() {
       "docgenie-biometric-enabled"
     );
 
-
     localStorage.removeItem(
       "docgenie-biometric-credential"
     );
@@ -1580,7 +1466,6 @@ function App() {
     alert(
       "Biometric login has been disabled."
     );
-
   };
 
 
@@ -1594,25 +1479,17 @@ function App() {
       "isLoggedIn"
     );
 
-
     localStorage.removeItem(
       "user"
     );
-
 
     localStorage.removeItem(
       "docgenie-profile-pic"
     );
 
-
     localStorage.removeItem(
       "docgenie-token"
     );
-
-
-    // FCM token is also removed locally.
-    // The backend should ideally remove/deactivate it
-    // during logout as well.
 
     localStorage.removeItem(
       "docgenie-fcm-token"
@@ -1620,9 +1497,6 @@ function App() {
 
 
     setProfilePic("");
-
-
-    setFcmToken("");
 
 
     setAccount({
@@ -1639,11 +1513,12 @@ function App() {
     setDocuments([]);
 
 
-    setSelectedDocument(null);
+    setSelectedDocument(
+      null
+    );
 
 
     navigate("login");
-
   };
 
 
@@ -1659,11 +1534,9 @@ function App() {
       document
     );
 
-
     navigate(
       "document-details"
     );
-
   };
 
 
@@ -1671,205 +1544,193 @@ function App() {
   // ADD DOCUMENT
   // =====================================================
 
-  const addDocument =
-    async (document) => {
+  const addDocument = async (
+    document
+  ) => {
 
-      try {
+    try {
 
-        const token =
-          localStorage.getItem(
-            "docgenie-token"
-          );
-
-
-        if (!token) {
-
-          alert(
-            "Please login again."
-          );
-
-
-          navigate("login");
-
-
-          return;
-
-        }
-
-
-        const response =
-          await fetch(
-            "http://localhost:5000/api/documents",
-            {
-              method: "POST",
-
-              headers: {
-
-                Authorization:
-                  `Bearer ${token}`,
-
-                "Content-Type":
-                  "application/json",
-
-              },
-
-              body:
-                JSON.stringify(
-                  document
-                ),
-
-            }
-          );
-
-
-        const data =
-          await response.json();
-
-
-        if (!response.ok) {
-
-          alert(
-            data.message ||
-            "Unable to add document."
-          );
-
-
-          return;
-
-        }
-
-
-        if (data.document) {
-
-          setDocuments(
-            (previous) => [
-              data.document,
-              ...previous,
-            ]
-          );
-
-        }
-
-
-        navigate(
-          "documents"
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
         );
 
-      } catch (error) {
 
-        console.error(
-          "Add document error:",
-          error
-        );
-
+      if (!token) {
 
         alert(
-          "Unable to connect to the server."
+          "Please login again."
         );
 
+        navigate("login");
+
+        return;
       }
 
-    };
+
+      // -------------------------------------------------
+      // CREATE DOCUMENT IN MONGODB
+      // -------------------------------------------------
+
+      const response =
+        await fetch(
+          "http://localhost:5000/api/documents",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body:
+              JSON.stringify(
+                document
+              ),
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        alert(
+          data.message ||
+            "Unable to add document."
+        );
+
+        return;
+      }
+
+
+      const newDocument =
+        data.document;
+
+
+      setDocuments(
+        (previous) => [
+          newDocument,
+          ...previous,
+        ]
+      );
+
+
+      navigate(
+        "documents"
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Add document error:",
+        error
+      );
+
+
+      alert(
+        "Unable to connect to the server."
+      );
+    }
+  };
 
 
   // =====================================================
   // DELETE DOCUMENT
   // =====================================================
 
-  const deleteDocument =
-    async (id) => {
+  const deleteDocument = async (
+    id
+  ) => {
 
-      try {
+    try {
 
-        const token =
-          localStorage.getItem(
-            "docgenie-token"
-          );
-
-
-        if (!token) {
-
-          alert(
-            "Please login again."
-          );
-
-
-          navigate("login");
-
-
-          return;
-
-        }
-
-
-        const response =
-          await fetch(
-            `http://localhost:5000/api/documents/${id}`,
-            {
-              method: "DELETE",
-
-              headers: {
-
-                Authorization:
-                  `Bearer ${token}`,
-
-              },
-
-            }
-          );
-
-
-        const data =
-          await response.json();
-
-
-        if (!response.ok) {
-
-          alert(
-            data.message ||
-            "Unable to delete document."
-          );
-
-
-          return;
-
-        }
-
-
-        setDocuments(
-          (previous) =>
-            previous.filter(
-              (document) =>
-                document._id !== id &&
-                document.id !== id
-            )
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
         );
 
 
-        setSelectedDocument(
-          null
-        );
-
-
-        navigate(
-          "documents"
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Delete document error:",
-          error
-        );
-
+      if (!token) {
 
         alert(
-          "Unable to connect to the server."
+          "Please login again."
         );
 
+        navigate("login");
+
+        return;
       }
 
-    };
+
+      const response =
+        await fetch(
+          `http://localhost:5000/api/documents/${id}`,
+          {
+            method: "DELETE",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        alert(
+          data.message ||
+            "Unable to delete document."
+        );
+
+        return;
+      }
+
+
+      setDocuments(
+        (previous) =>
+          previous.filter(
+            (document) =>
+              document._id !== id &&
+              document.id !== id
+          )
+      );
+
+
+      setSelectedDocument(
+        null
+      );
+
+
+      navigate(
+        "documents"
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Delete document error:",
+        error
+      );
+
+
+      alert(
+        "Unable to connect to the server."
+      );
+    }
+  };
 
 
   // =====================================================
@@ -1919,6 +1780,7 @@ function App() {
       {page === "login" && (
 
         <Login
+
           onLogin={
             handleLogin
           }
@@ -1945,9 +1807,8 @@ function App() {
       {page === "create-account" && (
 
         <CreateAccount
-          account={
-            account
-          }
+
+          account={account}
 
           updateAccount={
             updateAccount
@@ -1975,9 +1836,8 @@ function App() {
       {page === "verify-phone" && (
 
         <VerifyPhone
-          account={
-            account
-          }
+
+          account={account}
 
           onContinue={() =>
             navigate(
@@ -2003,9 +1863,8 @@ function App() {
       {page === "enter-email" && (
 
         <EnterEmail
-          account={
-            account
-          }
+
+          account={account}
 
           updateAccount={
             updateAccount
@@ -2035,9 +1894,8 @@ function App() {
       {page === "verify-email" && (
 
         <VerifyEmail
-          account={
-            account
-          }
+
+          account={account}
 
           onContinue={() =>
             navigate(
@@ -2063,9 +1921,8 @@ function App() {
       {page === "create-password" && (
 
         <CreatePassword
-          account={
-            account
-          }
+
+          account={account}
 
           updateAccount={
             updateAccount
@@ -2093,9 +1950,8 @@ function App() {
       {page === "account-created" && (
 
         <AccountCreated
-          account={
-            account
-          }
+
+          account={account}
 
           onGetStarted={() =>
             navigate("login")
@@ -2113,9 +1969,8 @@ function App() {
       {page === "home" && (
 
         <Home
-          account={
-            account
-          }
+
+          account={account}
 
           documents={
             documentsWithExpiryStatus
@@ -2149,9 +2004,8 @@ function App() {
       {page === "profile" && (
 
         <Profile
-          account={
-            account
-          }
+
+          account={account}
 
           onNavigate={
             navigate
@@ -2197,6 +2051,7 @@ function App() {
       {page === "documents" && (
 
         <Documents
+
           documents={
             documentsWithExpiryStatus
           }
@@ -2221,6 +2076,7 @@ function App() {
       {page === "document-details" && (
 
         <DocumentDetails
+
           document={
             selectedDocument
               ? {
@@ -2254,26 +2110,7 @@ function App() {
       {page === "upload" && (
 
         <UploadDocument
-          onNavigate={
-            navigate
-          }
 
-          onUpload={
-            addDocument
-          }
-
-        />
-
-      )}
-
-
-      {/* =================================================
-          SCAN DOCUMENT
-      ================================================= */}
-
-      {page === "scan" && (
-
-        <ScanDocument
           onNavigate={
             navigate
           }
@@ -2294,6 +2131,7 @@ function App() {
       {page === "share" && (
 
         <ShareDocument
+
           documents={
             documents
           }
@@ -2314,6 +2152,7 @@ function App() {
       {page === "reminders" && (
 
         <Reminders
+
           documents={
             documentsWithExpiryStatus
           }
@@ -2331,7 +2170,6 @@ function App() {
       )}
 
     </div>
-
   );
 }
 

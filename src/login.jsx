@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, {
+  useState,
+} from "react";
+
 import logo from "./assets/docgenie-logo.png";
 
 import {
@@ -16,42 +19,93 @@ function Login({
   onCreateAccount,
   onBiometricLogin,
 }) {
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [
+    identifier,
+    setIdentifier,
+  ] = useState("");
+
+  const [
+    password,
+    setPassword,
+  ] = useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
   // =====================================================
   // LOGIN
   // =====================================================
 
-  const handleLoginClick = () => {
-    const email = identifier.trim();
+  const handleLoginClick =
+    async () => {
+      const email =
+        identifier.trim();
 
-    if (!email || !password) {
-      alert("Please enter email and password.");
-      return;
-    }
+      if (
+        !email ||
+        !password
+      ) {
+        alert(
+          "Please enter email and password."
+        );
 
-    // Send email and password to App.jsx
-    onLogin({
-      email: email,
-      password: password,
-    });
-  };
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // App.jsx performs the actual
+        // backend authentication.
+
+        await onLogin({
+          email,
+          password,
+        });
+      } catch (error) {
+        console.error(
+          "Login page error:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
   // =====================================================
   // BIOMETRIC LOGIN
   // =====================================================
 
-  const handleBiometricLogin = () => {
-    if (onBiometricLogin) {
-      onBiometricLogin();
-    } else {
-      alert(
-        "Biometric login is not available right now."
-      );
-    }
-  };
+  const handleBiometricLogin =
+    async () => {
+      if (!onBiometricLogin) {
+        alert(
+          "Biometric login is not available right now."
+        );
+
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        await onBiometricLogin();
+      } catch (error) {
+        console.error(
+          "Biometric login error:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <div className="auth-page">
@@ -66,9 +120,11 @@ function Login({
           style={{
             width: "100%",
             display: "flex",
-            justifyContent: "center",
+            justifyContent:
+              "center",
             alignItems: "center",
-            marginBottom: "18px",
+            marginBottom:
+              "18px",
           }}
         >
           <img
@@ -87,7 +143,9 @@ function Login({
             TITLE
         ================================================= */}
 
-        <h1>Welcome Back</h1>
+        <h1>
+          Welcome Back
+        </h1>
 
         <p className="auth-subtitle">
           Secure • Organize • Access
@@ -109,8 +167,16 @@ function Login({
               type="text"
               placeholder="Enter email or phone number"
               value={identifier}
-              onChange={(event) =>
-                setIdentifier(event.target.value)
+              disabled={
+                loading
+              }
+              onChange={(
+                event
+              ) =>
+                setIdentifier(
+                  event.target
+                    .value
+                )
               }
             />
           </div>
@@ -136,11 +202,24 @@ function Login({
               }
               placeholder="Enter password"
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
+              disabled={
+                loading
               }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
+              onChange={(
+                event
+              ) =>
+                setPassword(
+                  event.target
+                    .value
+                )
+              }
+              onKeyDown={(
+                event
+              ) => {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
                   handleLoginClick();
                 }
               }}
@@ -149,16 +228,26 @@ function Login({
             <button
               type="button"
               className="input-icon-button"
+              disabled={
+                loading
+              }
               onClick={() =>
                 setShowPassword(
-                  (previous) => !previous
+                  (
+                    previous
+                  ) =>
+                    !previous
                 )
               }
             >
               {showPassword ? (
-                <EyeOff size={18} />
+                <EyeOff
+                  size={18}
+                />
               ) : (
-                <Eye size={18} />
+                <Eye
+                  size={18}
+                />
               )}
             </button>
           </div>
@@ -171,6 +260,9 @@ function Login({
         <div className="forgot-row">
           <button
             type="button"
+            disabled={
+              loading
+            }
             onClick={() =>
               alert(
                 "Password recovery will be added later."
@@ -188,10 +280,20 @@ function Login({
         <button
           type="button"
           className="primary-button"
-          onClick={handleLoginClick}
+          disabled={loading}
+          onClick={
+            handleLoginClick
+          }
         >
-          Login
-          <ArrowRight size={19} />
+          {loading
+            ? "Logging in..."
+            : "Login"}
+
+          {!loading && (
+            <ArrowRight
+              size={19}
+            />
+          )}
         </button>
 
         {/* =================================================
@@ -201,9 +303,14 @@ function Login({
         <button
           type="button"
           className="biometric-login-button"
-          onClick={handleBiometricLogin}
+          disabled={loading}
+          onClick={
+            handleBiometricLogin
+          }
         >
-          <Fingerprint size={22} />
+          <Fingerprint
+            size={22}
+          />
 
           <span>
             Login with Biometrics
@@ -216,7 +323,11 @@ function Login({
 
         <div className="or-divider">
           <span />
-          <p>Or Login with</p>
+
+          <p>
+            Or Login with
+          </p>
+
           <span />
         </div>
 
@@ -228,6 +339,7 @@ function Login({
 
           <button
             type="button"
+            disabled={loading}
             onClick={() =>
               alert(
                 "Google login will be connected later."
@@ -235,11 +347,13 @@ function Login({
             }
           >
             <Globe size={19} />
+
             Google
           </button>
 
           <button
             type="button"
+            disabled={loading}
             onClick={() =>
               alert(
                 "Apple login will be connected later."
@@ -270,7 +384,10 @@ function Login({
 
           <button
             type="button"
-            onClick={onCreateAccount}
+            disabled={loading}
+            onClick={
+              onCreateAccount
+            }
           >
             Sign Up
           </button>

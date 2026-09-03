@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    // =====================================================
+    // USER INFORMATION
+    // =====================================================
+
     name: {
       type: String,
       required: true,
@@ -27,10 +31,19 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // =====================================================
+    // PASSWORD
+    // Password is stored as a bcrypt hash.
+    // =====================================================
+
     password: {
       type: String,
       required: true,
     },
+
+    // =====================================================
+    // EMAIL VERIFICATION
+    // =====================================================
 
     emailVerified: {
       type: Boolean,
@@ -39,9 +52,14 @@ const userSchema = new mongoose.Schema(
 
     // =====================================================
     // FIREBASE CLOUD MESSAGING TOKENS
-    // =====================================================
-    // One user can use DocGenie on multiple browsers/devices.
-    // Therefore we store multiple FCM tokens.
+    //
+    // A user can have multiple devices:
+    // - Laptop
+    // - Mobile phone
+    // - Tablet
+    //
+    // $addToSet is used in notificationController.js
+    // so duplicate tokens will not be stored.
     // =====================================================
 
     fcmTokens: {
@@ -49,6 +67,7 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
   },
+
   {
     timestamps: true,
   },

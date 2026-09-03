@@ -17,15 +17,21 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  console.log("Received background FCM message:", payload);
+// =====================================================
+// BACKGROUND NOTIFICATION
+// =====================================================
 
-  const notificationTitle =
-    payload.notification?.title || "DocGenie Expiry Alert";
+messaging.onBackgroundMessage((payload) => {
+  console.log("[firebase-messaging-sw.js] Background message:", payload);
+
+  const notificationTitle = payload.notification?.title || "DocGenie";
 
   const notificationOptions = {
-    body: payload.notification?.body || "You have a document expiry alert.",
+    body: payload.notification?.body || "You have a new DocGenie notification.",
+
     icon: "/docgenie-logo.png",
+
+    data: payload.data || {},
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

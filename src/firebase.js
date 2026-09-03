@@ -11,7 +11,16 @@ const firebaseConfig = {
   measurementId: "G-E5SWWERQ82",
 };
 
+// INITIALIZE FIREBASE
+// =====================================================
+
 const app = initializeApp(firebaseConfig);
+
+// =====================================================
+// FIREBASE MESSAGING
+// =====================================================
+
+let messaging = null;
 
 const initializeMessaging = async () => {
   try {
@@ -23,7 +32,9 @@ const initializeMessaging = async () => {
       return null;
     }
 
-    return getMessaging(app);
+    messaging = getMessaging(app);
+
+    return messaging;
   } catch (error) {
     console.error("Firebase Messaging initialization error:", error);
 
@@ -31,4 +42,4 @@ const initializeMessaging = async () => {
   }
 };
 
-export { app, initializeMessaging };
+export { app, messaging, initializeMessaging };
