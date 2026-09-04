@@ -1,27 +1,24 @@
-const path = require("path");
-
 const { initializeApp, getApps, cert } = require("firebase-admin/app");
 
-// =====================================================
-// FIREBASE SERVICE ACCOUNT
-// =====================================================
-
-const serviceAccount = require(
-  path.join(__dirname, "..", "serviceAccountKey.json"),
-);
-
-// =====================================================
-// INITIALIZE FIREBASE ADMIN
-// =====================================================
-
-let firebaseApp;
-
 if (getApps().length === 0) {
-  firebaseApp = initializeApp({
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT environment variable is missing.",
+    );
+  }
+
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+  if (serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(
+      /\\n/g,
+      "\n",
+    );
+  }
+
+  initializeApp({
     credential: cert(serviceAccount),
   });
-} else {
-  firebaseApp = getApps()[0];
 }
 
-module.exports = firebaseApp;
+module.exports = getApps()[0];

@@ -12,6 +12,21 @@ import { getToken, onMessage } from "firebase/messaging";
 import { messaging } from "./firebase";
 
 // =====================================================
+// API CONFIGURATION
+// =====================================================
+//
+// Local development:
+// VITE_API_URL=http://localhost:5000
+//
+// Deployed application:
+// VITE_API_URL=https://your-backend-url.com
+//
+// =====================================================
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// =====================================================
 // AUTHENTICATION PAGES
 // =====================================================
 
@@ -44,9 +59,7 @@ import Reminders from "./reminders.jsx";
 import "./app.css";
 import "./pages.css";
 
-
 function App() {
-
   // =====================================================
   // PROFILE PICTURE
   // =====================================================
@@ -57,13 +70,11 @@ function App() {
     localStorage.getItem("docgenie-profile-pic") || ""
   );
 
-
   // =====================================================
   // CURRENT PAGE
   // =====================================================
 
   const [page, setPage] = useState("loading");
-
 
   // =====================================================
   // ACCOUNT
@@ -76,13 +87,11 @@ function App() {
     email: "",
   });
 
-
   // =====================================================
   // PASSWORD
   // =====================================================
 
   const [password, setPassword] = useState("");
-
 
   // =====================================================
   // DOCUMENTS
@@ -90,21 +99,17 @@ function App() {
 
   const [documents, setDocuments] = useState([]);
 
-
   // =====================================================
   // SELECTED DOCUMENT
   // =====================================================
 
-  const [selectedDocument, setSelectedDocument] =
-    useState(null);
-
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
   // =====================================================
   // EXPIRY STATUS
   // =====================================================
 
   const getExpiryStatus = (expiry) => {
-
     if (!expiry) {
       return {
         type: "none",
@@ -152,7 +157,6 @@ function App() {
         (1000 * 60 * 60 * 24)
     );
 
-
     if (daysRemaining < 0) {
       return {
         type: "expired",
@@ -162,7 +166,6 @@ function App() {
         daysRemaining,
       };
     }
-
 
     if (daysRemaining <= 7) {
       return {
@@ -181,7 +184,6 @@ function App() {
       };
     }
 
-
     if (daysRemaining <= 30) {
       return {
         type: "30-days",
@@ -191,7 +193,6 @@ function App() {
         daysRemaining,
       };
     }
-
 
     if (daysRemaining <= 90) {
       return {
@@ -203,7 +204,6 @@ function App() {
       };
     }
 
-
     return {
       type: "none",
       label: "No upcoming expiry",
@@ -213,7 +213,6 @@ function App() {
     };
   };
 
-
   // =====================================================
   // DOCUMENTS WITH EXPIRY STATUS
   // =====================================================
@@ -221,13 +220,11 @@ function App() {
   const documentsWithExpiryStatus =
     documents.map((document) => ({
       ...document,
-
       expiryStatus:
         getExpiryStatus(
           document.expiry
         ),
     }));
-
 
   // =====================================================
   // EXPIRY NOTIFICATIONS
@@ -236,7 +233,6 @@ function App() {
   const expiryNotifications =
     documentsWithExpiryStatus.filter(
       (document) => {
-
         const status =
           document.expiryStatus?.type;
 
@@ -249,21 +245,21 @@ function App() {
       }
     );
 
-
   // =====================================================
   // SAVE FCM TOKEN TO BACKEND
   // =====================================================
 
   const registerFCMToken = async () => {
-
     try {
-
       const token =
         localStorage.getItem(
           "docgenie-token"
         );
 
-      // User must be logged in
+      // -------------------------------------------------
+      // USER MUST BE LOGGED IN
+      // -------------------------------------------------
+
       if (!token) {
         console.log(
           "FCM: User is not logged in."
@@ -272,8 +268,22 @@ function App() {
         return;
       }
 
+      // -------------------------------------------------
+      // CHECK FIREBASE MESSAGING
+      // -------------------------------------------------
 
-      // Check browser support
+      if (!messaging) {
+        console.warn(
+          "FCM: Firebase Messaging is not available."
+        );
+
+        return;
+      }
+
+      // -------------------------------------------------
+      // CHECK BROWSER SUPPORT
+      // -------------------------------------------------
+
       if (
         !("Notification" in window)
       ) {
@@ -284,6 +294,21 @@ function App() {
         return;
       }
 
+      // -------------------------------------------------
+      // CHECK VAPID KEY
+      // -------------------------------------------------
+
+      const vapidKey =
+        import.meta.env
+          .VITE_FIREBASE_VAPID_KEY;
+
+      if (!vapidKey) {
+        console.warn(
+          "FCM disabled: VITE_FIREBASE_VAPID_KEY is missing."
+        );
+
+        return;
+      }
 
       // -------------------------------------------------
       // ASK NOTIFICATION PERMISSION
@@ -292,23 +317,18 @@ function App() {
       let permission =
         Notification.permission;
 
-
       if (permission === "default") {
-
         permission =
           await Notification.requestPermission();
       }
 
-
       if (permission !== "granted") {
-
         console.log(
           "FCM: Notification permission was not granted."
         );
 
         return;
       }
-
 
       // -------------------------------------------------
       // GET FIREBASE FCM TOKEN
@@ -318,15 +338,11 @@ function App() {
         await getToken(
           messaging,
           {
-            vapidKey:
-              import.meta.env
-                .VITE_FIREBASE_VAPID_KEY,
+            vapidKey,
           }
         );
 
-
       if (!fcmToken) {
-
         console.log(
           "FCM: Unable to get FCM token."
         );
@@ -334,20 +350,17 @@ function App() {
         return;
       }
 
-
       console.log(
-        "FCM token received:",
-        fcmToken
+        "FCM token received successfully."
       );
 
-
       // -------------------------------------------------
-      // SAVE TOKEN IN BACKEND
+      // SAVE TOKEN TO BACKEND
       // -------------------------------------------------
 
       const response =
         await fetch(
-          "http://localhost:5000/api/notifications/fcm-token",
+          `${API_URL}/api/notifications/fcm-token`,
           {
             method: "POST",
 
@@ -365,13 +378,15 @@ function App() {
           }
         );
 
+      let data = {};
 
-      const data =
-        await response.json();
-
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
-
         console.error(
           "FCM token save failed:",
           data
@@ -380,21 +395,19 @@ function App() {
         return;
       }
 
+      // -------------------------------------------------
+      // SAVE LOCALLY
+      // -------------------------------------------------
 
-      // Save locally so we know
-      // this browser already registered.
       localStorage.setItem(
         "docgenie-fcm-token",
         fcmToken
       );
 
-
       console.log(
         "FCM token saved successfully."
       );
-
     } catch (error) {
-
       console.error(
         "FCM registration error:",
         error
@@ -402,43 +415,40 @@ function App() {
     }
   };
 
-
   // =====================================================
   // FCM FOREGROUND MESSAGE
   // =====================================================
 
   useEffect(() => {
-
     if (!messaging) {
       return;
     }
 
+    if (
+      !("Notification" in window)
+    ) {
+      return;
+    }
 
     let unsubscribe;
 
-
     try {
-
       unsubscribe =
         onMessage(
           messaging,
           (payload) => {
-
             console.log(
               "FCM foreground message:",
               payload
             );
 
-
             const title =
               payload.notification?.title ||
               "DocGenie";
 
-
             const body =
               payload.notification?.body ||
               "You have a new notification.";
-
 
             // -------------------------------------------------
             // SHOW BROWSER NOTIFICATION
@@ -448,54 +458,41 @@ function App() {
               Notification.permission ===
               "granted"
             ) {
-
               new Notification(
                 title,
                 {
                   body,
+
                   icon:
-                    "/docgenie-logo.png",
+                    `${import.meta.env.BASE_URL}docgenie-logo.png`,
                 }
               );
-
             } else {
-
-              // Fallback
               console.log(
                 `${title}: ${body}`
               );
             }
-
           }
         );
-
     } catch (error) {
-
       console.error(
         "FCM foreground listener error:",
         error
       );
-
     }
 
-
     return () => {
-
       if (unsubscribe) {
         unsubscribe();
       }
-
     };
-
   }, []);
-
 
   // =====================================================
   // REGISTER FCM WHEN USER IS LOGGED IN
   // =====================================================
 
   useEffect(() => {
-
     if (
       page !== "home" &&
       page !== "documents" &&
@@ -505,26 +502,21 @@ function App() {
       return;
     }
 
-
     if (!account.email) {
       return;
     }
 
-
     registerFCMToken();
-
   }, [
     page,
     account.email,
   ]);
-
 
   // =====================================================
   // BROWSER EXPIRY NOTIFICATIONS
   // =====================================================
 
   const sendExpiryNotifications = () => {
-
     if (
       !("Notification" in window)
     ) {
@@ -535,28 +527,23 @@ function App() {
       return;
     }
 
-
     if (
       Notification.permission ===
       "default"
     ) {
-
       Notification.requestPermission().then(
         (permission) => {
-
           if (
             permission ===
             "granted"
           ) {
             showExpiryNotifications();
           }
-
         }
       );
 
       return;
     }
-
 
     if (
       Notification.permission ===
@@ -566,15 +553,11 @@ function App() {
     }
   };
 
-
   const showExpiryNotifications = () => {
-
     expiryNotifications.forEach(
       (document) => {
-
         const status =
           document.expiryStatus;
-
 
         new Notification(
           "DocGenie Expiry Alert",
@@ -583,14 +566,12 @@ function App() {
               `${document.name}: ${status.label}`,
 
             icon:
-              "/docgenie-logo.png",
+              `${import.meta.env.BASE_URL}docgenie-logo.png`,
           }
         );
-
       }
     );
   };
-
 
   // =====================================================
   // NAVIGATION
@@ -600,7 +581,6 @@ function App() {
     nextPage,
     document = null
   ) => {
-
     if (document) {
       setSelectedDocument(
         document
@@ -616,7 +596,6 @@ function App() {
     });
   };
 
-
   // =====================================================
   // PROFILE PICTURE CHANGE
   // =====================================================
@@ -624,19 +603,16 @@ function App() {
   const handleProfilePicChange = (
     e
   ) => {
-
     const file =
       e.target.files?.[0];
 
     if (!file) return;
-
 
     if (
       !file.type.startsWith(
         "image/"
       )
     ) {
-
       alert(
         "Please select an image file."
       );
@@ -644,12 +620,10 @@ function App() {
       return;
     }
 
-
     if (
       file.size >
       5 * 1024 * 1024
     ) {
-
       alert(
         "Please select an image smaller than 5 MB."
       );
@@ -657,19 +631,14 @@ function App() {
       return;
     }
 
-
     const reader =
       new FileReader();
 
-
     reader.onload = () => {
-
       const image =
         reader.result;
 
-
       setProfilePic(image);
-
 
       localStorage.setItem(
         "docgenie-profile-pic",
@@ -677,44 +646,36 @@ function App() {
       );
     };
 
-
     reader.onerror = () => {
-
       alert(
         "Unable to read the selected image."
       );
     };
-
 
     reader.readAsDataURL(file);
 
     e.target.value = "";
   };
 
-
   // =====================================================
   // OPEN PROFILE PICKER
   // =====================================================
 
   const openProfilePicker = () => {
-
     profileInputRef.current?.click();
   };
-
 
   // =====================================================
   // REMOVE PROFILE PICTURE
   // =====================================================
 
   const removeProfilePic = () => {
-
     setProfilePic("");
 
     localStorage.removeItem(
       "docgenie-profile-pic"
     );
   };
-
 
   // =====================================================
   // UPDATE ACCOUNT
@@ -723,7 +684,6 @@ function App() {
   const updateAccount = (
     data
   ) => {
-
     setAccount(
       (previous) => ({
         ...previous,
@@ -732,32 +692,26 @@ function App() {
     );
   };
 
-
   // =====================================================
   // LOAD USER DOCUMENTS FROM BACKEND
   // =====================================================
 
   const loadDocuments = async () => {
-
     try {
-
       const token =
         localStorage.getItem(
           "docgenie-token"
         );
 
-
       if (!token) {
-
         setDocuments([]);
 
         return;
       }
 
-
       const response =
         await fetch(
-          "http://localhost:5000/api/documents",
+          `${API_URL}/api/documents`,
           {
             method: "GET",
 
@@ -768,13 +722,15 @@ function App() {
           }
         );
 
+      let data = {};
 
-      const data =
-        await response.json();
-
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
-
         console.error(
           "Unable to load documents:",
           data
@@ -785,25 +741,18 @@ function App() {
         return;
       }
 
-
       setDocuments(
         data.documents || []
       );
-
-
     } catch (error) {
-
       console.error(
         "Load documents error:",
         error
       );
 
       setDocuments([]);
-
     }
-
   };
-
 
   // =====================================================
   // CREATE PASSWORD / REGISTER
@@ -813,11 +762,8 @@ function App() {
     async (
       newPassword
     ) => {
-
       try {
-
         if (!newPassword) {
-
           alert(
             "Please enter a password."
           );
@@ -825,15 +771,13 @@ function App() {
           return;
         }
 
-
         setPassword(
           newPassword
         );
 
-
         const response =
           await fetch(
-            "http://localhost:5000/api/auth/register",
+            `${API_URL}/api/auth/register`,
             {
               method: "POST",
 
@@ -861,13 +805,15 @@ function App() {
             }
           );
 
+        let data = {};
 
-        const data =
-          await response.json();
-
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
 
         if (!response.ok) {
-
           alert(
             data.message ||
               "Unable to create account."
@@ -876,26 +822,20 @@ function App() {
           return;
         }
 
-
         navigate(
           "account-created"
         );
-
-
       } catch (error) {
-
         console.error(
           "Account creation error:",
           error
         );
-
 
         alert(
           "Unable to connect to the server. Please try again."
         );
       }
     };
-
 
   // =====================================================
   // LOGIN
@@ -905,22 +845,17 @@ function App() {
     async (
       credentials
     ) => {
-
       try {
-
         const email =
           credentials?.email?.trim();
 
-
         const loginPassword =
           credentials?.password;
-
 
         if (
           !email ||
           !loginPassword
         ) {
-
           alert(
             "Please enter email and password."
           );
@@ -928,14 +863,13 @@ function App() {
           return;
         }
 
-
         // -------------------------------------------------
         // LOGIN REQUEST
         // -------------------------------------------------
 
         const response =
           await fetch(
-            "http://localhost:5000/api/auth/login",
+            `${API_URL}/api/auth/login`,
             {
               method: "POST",
 
@@ -952,13 +886,15 @@ function App() {
             }
           );
 
+        let data = {};
 
-        const data =
-          await response.json();
-
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
 
         if (!response.ok) {
-
           alert(
             data.message ||
               "Invalid email or password."
@@ -967,7 +903,6 @@ function App() {
           return;
         }
 
-
         // -------------------------------------------------
         // LOGIN SUCCESSFUL
         // -------------------------------------------------
@@ -975,7 +910,6 @@ function App() {
         const loggedInUser =
           data.user ||
           data;
-
 
         setAccount({
           name:
@@ -995,9 +929,8 @@ function App() {
             email,
         });
 
-
         // -------------------------------------------------
-        // SAVE JWT
+        // SAVE LOGIN STATUS
         // -------------------------------------------------
 
         localStorage.setItem(
@@ -1005,41 +938,33 @@ function App() {
           "true"
         );
 
+        // -------------------------------------------------
+        // SAVE JWT
+        // -------------------------------------------------
 
         if (data.token) {
-
           localStorage.setItem(
             "docgenie-token",
             data.token
           );
-
         }
 
-
         // -------------------------------------------------
-        // IMPORTANT
+        // LOAD USER DOCUMENTS
         // -------------------------------------------------
-
-        // Do NOT load documents from
-        // localStorage.
-        //
-        // Documents belong to the
-        // authenticated MongoDB user.
-
 
         await loadDocuments();
 
+        // -------------------------------------------------
+        // GO TO HOME
+        // -------------------------------------------------
 
         navigate("home");
-
-
       } catch (error) {
-
         console.error(
           "Login error:",
           error
         );
-
 
         alert(
           "Unable to connect to the server. Please try again."
@@ -1047,6 +972,92 @@ function App() {
       }
     };
 
+  // =====================================================
+  // DELETE DOCUMENT
+  // =====================================================
+
+  const deleteDocument = async (
+    documentId
+  ) => {
+    try {
+      if (!documentId) {
+        alert(
+          "Document ID is missing."
+        );
+
+        return;
+      }
+
+      const token =
+        localStorage.getItem(
+          "docgenie-token"
+        );
+
+      if (!token) {
+        alert(
+          "Please login again."
+        );
+
+        navigate("login");
+
+        return;
+      }
+
+      const response =
+        await fetch(
+          `${API_URL}/api/documents/${documentId}`,
+          {
+            method: "DELETE",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
+        alert(
+          data.message ||
+            "Unable to delete document."
+        );
+
+        return;
+      }
+
+      setDocuments(
+        (previous) =>
+          previous.filter(
+            (document) =>
+              document._id !==
+              documentId
+          )
+      );
+
+      setSelectedDocument(null);
+
+      navigate(
+        "documents"
+      );
+    } catch (error) {
+      console.error(
+        "Delete document error:",
+        error
+      );
+
+      alert(
+        "Unable to connect to the server. Please try again."
+      );
+    }
+  };
 
   // =====================================================
   // BIOMETRIC SUPPORT
@@ -1054,9 +1065,7 @@ function App() {
 
   const isBiometricSupported =
     async () => {
-
       try {
-
         if (
           !window.PublicKeyCredential ||
           !navigator.credentials
@@ -1064,23 +1073,17 @@ function App() {
           return false;
         }
 
-
         if (
           PublicKeyCredential
             .isUserVerifyingPlatformAuthenticatorAvailable
         ) {
-
           return await
             PublicKeyCredential
               .isUserVerifyingPlatformAuthenticatorAvailable();
-
         }
 
-
         return false;
-
       } catch (error) {
-
         console.error(
           "Biometric support error:",
           error
@@ -1090,7 +1093,6 @@ function App() {
       }
     };
 
-
   // =====================================================
   // BUFFER TO BASE64
   // =====================================================
@@ -1098,12 +1100,10 @@ function App() {
   const bufferToBase64 = (
     buffer
   ) => {
-
     const bytes =
       new Uint8Array(buffer);
 
     let binary = "";
-
 
     bytes.forEach(
       (byte) => {
@@ -1114,10 +1114,8 @@ function App() {
       }
     );
 
-
     return btoa(binary);
   };
-
 
   // =====================================================
   // BASE64 TO BUFFER
@@ -1126,31 +1124,25 @@ function App() {
   const base64ToBuffer = (
     base64
   ) => {
-
     const binary =
       atob(base64);
-
 
     const bytes =
       new Uint8Array(
         binary.length
       );
 
-
     for (
       let i = 0;
       i < binary.length;
       i++
     ) {
-
       bytes[i] =
         binary.charCodeAt(i);
     }
 
-
     return bytes;
   };
-
 
   // =====================================================
   // ENABLE BIOMETRIC
@@ -1158,16 +1150,12 @@ function App() {
 
   const enableBiometric =
     async () => {
-
       try {
-
         const supported =
           await
             isBiometricSupported();
 
-
         if (!supported) {
-
           alert(
             "Biometric authentication is not available on this device or browser."
           );
@@ -1175,24 +1163,20 @@ function App() {
           return;
         }
 
-
         const challenge =
           crypto.getRandomValues(
             new Uint8Array(32)
           );
-
 
         const userId =
           crypto.getRandomValues(
             new Uint8Array(16)
           );
 
-
         const credential =
           await
             navigator.credentials.create({
               publicKey: {
-
                 challenge,
 
                 rp: {
@@ -1201,7 +1185,6 @@ function App() {
                 },
 
                 user: {
-
                   id: userId,
 
                   name:
@@ -1215,7 +1198,6 @@ function App() {
                 },
 
                 pubKeyCredParams: [
-
                   {
                     type:
                       "public-key",
@@ -1231,11 +1213,9 @@ function App() {
                     alg:
                       -257,
                   },
-
                 ],
 
                 authenticatorSelection: {
-
                   authenticatorAttachment:
                     "platform",
 
@@ -1254,9 +1234,7 @@ function App() {
               },
             });
 
-
         if (!credential) {
-
           alert(
             "Biometric setup was cancelled."
           );
@@ -1264,37 +1242,29 @@ function App() {
           return;
         }
 
-
         const credentialId =
           bufferToBase64(
             credential.rawId
           );
-
 
         localStorage.setItem(
           "docgenie-biometric-enabled",
           "true"
         );
 
-
         localStorage.setItem(
           "docgenie-biometric-credential",
           credentialId
         );
 
-
         alert(
           "Biometric login enabled successfully!"
         );
-
-
       } catch (error) {
-
         console.error(
           "Biometric registration error:",
           error
         );
-
 
         alert(
           "Biometric setup failed or was cancelled."
@@ -1302,34 +1272,28 @@ function App() {
       }
     };
 
-
   // =====================================================
   // BIOMETRIC LOGIN
   // =====================================================
 
   const biometricLogin =
     async () => {
-
       try {
-
         const biometricEnabled =
           localStorage.getItem(
             "docgenie-biometric-enabled"
           );
-
 
         const savedCredential =
           localStorage.getItem(
             "docgenie-biometric-credential"
           );
 
-
         if (
           biometricEnabled !==
             "true" ||
           !savedCredential
         ) {
-
           alert(
             "Please enable biometric login from your Profile first."
           );
@@ -1337,14 +1301,11 @@ function App() {
           return;
         }
 
-
         const supported =
           await
             isBiometricSupported();
 
-
         if (!supported) {
-
           alert(
             "Biometric authentication is not available on this device or browser."
           );
@@ -1352,23 +1313,18 @@ function App() {
           return;
         }
 
-
         const challenge =
           crypto.getRandomValues(
             new Uint8Array(32)
           );
 
-
         const credential =
           await
             navigator.credentials.get({
-
               publicKey: {
-
                 challenge,
 
                 allowCredentials: [
-
                   {
                     type:
                       "public-key",
@@ -1378,7 +1334,6 @@ function App() {
                         savedCredential
                       ),
                   },
-
                 ],
 
                 userVerification:
@@ -1389,9 +1344,7 @@ function App() {
               },
             });
 
-
         if (!credential) {
-
           alert(
             "Biometric authentication failed."
           );
@@ -1399,26 +1352,22 @@ function App() {
           return;
         }
 
-
         // -------------------------------------------------
         // IMPORTANT
         // -------------------------------------------------
         //
-        // The existing biometric implementation
-        // does not create a JWT token.
+        // This biometric implementation does not
+        // generate a new JWT.
         //
-        // Therefore, only navigate if a JWT
-        // already exists.
-
+        // Therefore a valid JWT must already exist.
+        // -------------------------------------------------
 
         const token =
           localStorage.getItem(
             "docgenie-token"
           );
 
-
         if (!token) {
-
           alert(
             "Please login with your email and password once before using biometric login."
           );
@@ -1426,20 +1375,14 @@ function App() {
           return;
         }
 
-
         await loadDocuments();
 
-
         navigate("home");
-
-
       } catch (error) {
-
         console.error(
           "Biometric login error:",
           error
         );
-
 
         alert(
           "Biometric authentication failed or was cancelled."
@@ -1447,13 +1390,11 @@ function App() {
       }
     };
 
-
   // =====================================================
   // DISABLE BIOMETRIC
   // =====================================================
 
   const disableBiometric = () => {
-
     localStorage.removeItem(
       "docgenie-biometric-enabled"
     );
@@ -1462,19 +1403,16 @@ function App() {
       "docgenie-biometric-credential"
     );
 
-
     alert(
       "Biometric login has been disabled."
     );
   };
-
 
   // =====================================================
   // LOGOUT
   // =====================================================
 
   const handleLogout = () => {
-
     localStorage.removeItem(
       "isLoggedIn"
     );
@@ -1495,9 +1433,7 @@ function App() {
       "docgenie-fcm-token"
     );
 
-
     setProfilePic("");
-
 
     setAccount({
       name: "",
@@ -1506,21 +1442,16 @@ function App() {
       email: "",
     });
 
-
     setPassword("");
 
-
     setDocuments([]);
-
 
     setSelectedDocument(
       null
     );
 
-
     navigate("login");
   };
-
 
   // =====================================================
   // OPEN DOCUMENT
@@ -1529,7 +1460,6 @@ function App() {
   const openDocument = (
     document
   ) => {
-
     setSelectedDocument(
       document
     );
@@ -1539,26 +1469,28 @@ function App() {
     );
   };
 
-
   // =====================================================
   // ADD DOCUMENT
   // =====================================================
 
+  const addDocument = (
+    document
+  ) => {
+    if (!document) return;
 
-const addDocument = (document) => {
-  if (!document) return;
+    setDocuments(
+      (previous) => [
+        document,
+        ...previous,
+      ]
+    );
+  };
 
-  setDocuments((previous) => [
-    document,
-    ...previous,
-  ]);
-};
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-
     <div className="app-container">
 
       {/* =================================================
@@ -1577,326 +1509,239 @@ const addDocument = (document) => {
         }}
       />
 
-
       {/* =================================================
           LOADING
       ================================================= */}
 
       {page === "loading" && (
-
         <Loading
           onFinish={() =>
             navigate("login")
           }
         />
-
       )}
-
 
       {/* =================================================
           LOGIN
       ================================================= */}
 
       {page === "login" && (
-
         <Login
-
           onLogin={
             handleLogin
           }
-
           onCreateAccount={() =>
             navigate(
               "create-account"
             )
           }
-
           onBiometricLogin={
             biometricLogin
           }
-
         />
-
       )}
-
 
       {/* =================================================
           CREATE ACCOUNT
       ================================================= */}
 
       {page === "create-account" && (
-
         <CreateAccount
-
           account={account}
-
           updateAccount={
             updateAccount
           }
-
           onContinue={() =>
             navigate(
               "verify-phone"
             )
           }
-
           onLogin={() =>
             navigate("login")
           }
-
         />
-
       )}
-
 
       {/* =================================================
           VERIFY PHONE
       ================================================= */}
 
       {page === "verify-phone" && (
-
         <VerifyPhone
-
           account={account}
-
           onContinue={() =>
             navigate(
               "enter-email"
             )
           }
-
           onBack={() =>
             navigate(
               "create-account"
             )
           }
-
         />
-
       )}
-
 
       {/* =================================================
           ENTER EMAIL
       ================================================= */}
 
       {page === "enter-email" && (
-
         <EnterEmail
-
           account={account}
-
           updateAccount={
             updateAccount
           }
-
           onContinue={() =>
             navigate(
               "verify-email"
             )
           }
-
           onBack={() =>
             navigate(
               "verify-phone"
             )
           }
-
         />
-
       )}
-
 
       {/* =================================================
           VERIFY EMAIL
       ================================================= */}
 
       {page === "verify-email" && (
-
         <VerifyEmail
-
           account={account}
-
           onContinue={() =>
             navigate(
               "create-password"
             )
           }
-
           onBack={() =>
             navigate(
               "enter-email"
             )
           }
-
         />
-
       )}
-
 
       {/* =================================================
           CREATE PASSWORD
       ================================================= */}
 
       {page === "create-password" && (
-
         <CreatePassword
-
           account={account}
-
           updateAccount={
             updateAccount
           }
-
           onContinue={
             handleCreatePassword
           }
-
           onBack={() =>
             navigate(
               "verify-email"
             )
           }
-
         />
-
       )}
-
 
       {/* =================================================
           ACCOUNT CREATED
       ================================================= */}
 
       {page === "account-created" && (
-
         <AccountCreated
-
           account={account}
-
           onGetStarted={() =>
             navigate("login")
           }
-
         />
-
       )}
-
 
       {/* =================================================
           HOME
       ================================================= */}
 
       {page === "home" && (
-
         <Home
-
           account={account}
-
           documents={
             documentsWithExpiryStatus
           }
-
           onNavigate={
             navigate
           }
-
           profilePic={
             profilePic
           }
-
           onOpenProfilePicker={
             openProfilePicker
           }
-
           notificationCount={
             expiryNotifications.length
           }
-
         />
-
       )}
-
 
       {/* =================================================
           PROFILE
       ================================================= */}
 
       {page === "profile" && (
-
         <Profile
-
           account={account}
-
           onNavigate={
             navigate
           }
-
           profilePic={
             profilePic
           }
-
           onProfilePicChange={
             handleProfilePicChange
           }
-
           onOpenProfilePicker={
             openProfilePicker
           }
-
           onRemoveProfilePic={
             removeProfilePic
           }
-
           onLogout={
             handleLogout
           }
-
           onEnableBiometric={
             enableBiometric
           }
-
           onDisableBiometric={
             disableBiometric
           }
-
         />
-
       )}
-
 
       {/* =================================================
           DOCUMENTS
       ================================================= */}
 
       {page === "documents" && (
-
         <Documents
-
           documents={
             documentsWithExpiryStatus
           }
-
           onNavigate={
             navigate
           }
-
           onOpenDocument={
             openDocument
           }
-
         />
-
       )}
-
 
       {/* =================================================
           DOCUMENT DETAILS
       ================================================= */}
 
       {page === "document-details" && (
-
         <DocumentDetails
-
           document={
             selectedDocument
               ? {
@@ -1909,89 +1754,65 @@ const addDocument = (document) => {
                 }
               : null
           }
-
           onNavigate={
             navigate
           }
-
           onDelete={
             deleteDocument
           }
-
         />
-
       )}
-
 
       {/* =================================================
           UPLOAD
       ================================================= */}
 
       {page === "upload" && (
-
         <UploadDocument
-
           onNavigate={
             navigate
           }
-
           onUpload={
             addDocument
           }
-
         />
-
       )}
-
 
       {/* =================================================
           SHARE
       ================================================= */}
 
       {page === "share" && (
-
         <ShareDocument
-
           documents={
             documents
           }
-
           onNavigate={
             navigate
           }
-
         />
-
       )}
-
 
       {/* =================================================
           REMINDERS
       ================================================= */}
 
       {page === "reminders" && (
-
         <Reminders
-
           documents={
             documentsWithExpiryStatus
           }
-
           onNavigate={
             navigate
           }
-
           notificationCount={
             expiryNotifications.length
           }
-
         />
-
       )}
 
     </div>
   );
 }
-
 
 export default App;
