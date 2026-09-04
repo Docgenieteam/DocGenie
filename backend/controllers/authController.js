@@ -1,8 +1,6 @@
 const PhoneOtp = require("../models/PhoneOtp");
 const Otp = require("../models/Otp");
-const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const router = require("../routes/authRoutes");
 
 // Generate secure 4-digit OTP
 const generateOTP = () => {
@@ -10,7 +8,7 @@ const generateOTP = () => {
 };
 
 // =============================
-// SEND OTP
+// SEND EMAIL OTP
 // =============================
 
 const sendOTP = async (req, res) => {
@@ -24,42 +22,130 @@ const sendOTP = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check Resend configuration
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is missing.");
+
+      return res.status(500).json({
+        success: false,
+        message: "Email service is not configured.",
+      });
+    }
+
+    if (!process.env.RESEND_FROM_EMAIL) {
+      console.error("RESEND_FROM_EMAIL is missing.");
+
+      return res.status(500).json({
+        success: false,
+        message: "Email sender is not configured.",
+      });
+    }
+
     // Generate OTP
     const otp = generateOTP();
-
-    // Delete previous OTP
-    await Otp.deleteMany({
-      identifier: email,
-    });
 
     // OTP expires after 5 minutes
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Save OTP in MongoDB
+    // Delete previous OTPs for this email
+    await Otp.deleteMany({
+      identifier: normalizedEmail,
+    });
+
+    // Save new OTP in MongoDB
     await Otp.create({
-      identifier: email,
+      identifier: normalizedEmail,
       otp,
       expiresAt,
     });
 
-    // Email transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
+    // =====================================
+    // SEND EMAIL USING RESEND API
+    // =====================================
 
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL,
+        to: [normalizedEmail],
+        subject: "DocGenie Verification OTP",
+
+        text: `Your DocGenie verification OTP is ${otp}. This OTP is valid for 5 minutes. Do not share this OTP with anyone.`,
+
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px;">
+            <h2 style="color: #123B63;">
+              DocGenie Email Verification
+            </h2>
+
+            <p>
+              Your DocGenie verification OTP is:
+            </p>
+
+            <div style="
+              font-size: 32px;
+              font-weight: bold;
+              letter-spacing: 8px;
+              padding: 20px;
+              background: #f3f6f9;
+              border-radius: 10px;
+              text-align: center;
+              margin: 20px 0;
+            ">
+              ${otp}
+            </div>
+
+            <p>
+              This OTP is valid for <strong>5 minutes</strong>.
+            </p>
+
+            <p>
+              Please do not share this OTP with anyone.
+            </p>
+
+            <p>
+              If you did not request this verification code, you can safely ignore this email.
+            </p>
+
+            <br />
+
+            <p>
+              Regards,<br />
+              <strong>DocGenie Team</strong>
+            </p>
+          </div>
+        `,
+      }),
+      signal: AbortSignal.timeout(15000),
     });
 
-    // Send email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "DocGenie Verification OTP",
+    const emailData = await emailResponse.json();
 
-      text: `Your DocGenie verification OTP is ${otp}. This OTP is valid for 5 minutes.`,
-    });
+    // Resend returned an error
+    if (!emailResponse.ok) {
+      console.error("Resend email error:", emailData);
+
+      // Remove OTP because email was not sent
+      await Otp.deleteMany({
+        identifier: normalizedEmail,
+      });
+
+      return res.status(500).json({
+        success: false,
+        message:
+          emailData?.message || "Unable to send OTP email. Please try again.",
+      });
+    }
+
+    console.log(
+      `OTP email sent successfully to ${normalizedEmail}. Resend ID: ${emailData?.id || "unknown"}`,
+    );
 
     return res.status(200).json({
       success: true,
@@ -67,6 +153,17 @@ const sendOTP = async (req, res) => {
     });
   } catch (error) {
     console.error("Send OTP error:", error);
+
+    // Clean up OTP if email sending failed
+    try {
+      if (req.body?.email) {
+        await Otp.deleteMany({
+          identifier: req.body.email.trim().toLowerCase(),
+        });
+      }
+    } catch (cleanupError) {
+      console.error("OTP cleanup error:", cleanupError);
+    }
 
     return res.status(500).json({
       success: false,
@@ -76,7 +173,7 @@ const sendOTP = async (req, res) => {
 };
 
 // =============================
-// VERIFY OTP
+// VERIFY EMAIL OTP
 // =============================
 
 const verifyOTP = async (req, res) => {
@@ -90,9 +187,11 @@ const verifyOTP = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Find OTP
     const otpRecord = await Otp.findOne({
-      identifier: email,
+      identifier: normalizedEmail,
     });
 
     if (!otpRecord) {
@@ -127,7 +226,7 @@ const verifyOTP = async (req, res) => {
     }
 
     // Check OTP
-    if (otpRecord.otp !== otp) {
+    if (otpRecord.otp !== otp.toString()) {
       otpRecord.attempts += 1;
 
       await otpRecord.save();
@@ -231,6 +330,7 @@ const verifyPhoneOTP = async (req, res) => {
       });
     }
 
+    // Maximum attempts
     if (otpRecord.attempts >= 5) {
       await PhoneOtp.deleteOne({
         _id: otpRecord._id,
@@ -242,6 +342,7 @@ const verifyPhoneOTP = async (req, res) => {
       });
     }
 
+    // Check expiry
     if (otpRecord.expiresAt < new Date()) {
       await PhoneOtp.deleteOne({
         _id: otpRecord._id,
@@ -253,7 +354,8 @@ const verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    if (otpRecord.otp !== otp) {
+    // Check OTP
+    if (otpRecord.otp !== otp.toString()) {
       otpRecord.attempts += 1;
 
       await otpRecord.save();
@@ -264,6 +366,7 @@ const verifyPhoneOTP = async (req, res) => {
       });
     }
 
+    // OTP correct
     await PhoneOtp.deleteOne({
       _id: otpRecord._id,
     });
@@ -281,6 +384,11 @@ const verifyPhoneOTP = async (req, res) => {
     });
   }
 };
+
+// =============================
+// EXPORT CONTROLLERS
+// =============================
+
 module.exports = {
   sendPhoneOTP,
   verifyPhoneOTP,
