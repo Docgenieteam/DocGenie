@@ -7,13 +7,12 @@ const generateOTP = () => {
   return crypto.randomInt(1000, 10000).toString();
 };
 
-// =============================
+// ===============================
 // SEND EMAIL OTP
-// =============================
-
+// ===============================
 const sendOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     if (!email) {
       return res.status(400).json({
@@ -22,130 +21,101 @@ const sendOTP = async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // Check Resend configuration
-    if (!process.env.RESEND_API_KEY) {
-      console.error("RESEND_API_KEY is missing.");
-
-      return res.status(500).json({
-        success: false,
-        message: "Email service is not configured.",
-      });
-    }
-
-    if (!process.env.RESEND_FROM_EMAIL) {
-      console.error("RESEND_FROM_EMAIL is missing.");
-
-      return res.status(500).json({
-        success: false,
-        message: "Email sender is not configured.",
-      });
-    }
-
-    // Generate OTP
     const otp = generateOTP();
+
+    // Remove any previous OTP for this email
+    await Otp.deleteMany({
+      identifier: email,
+    });
 
     // OTP expires after 5 minutes
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Delete previous OTPs for this email
-    await Otp.deleteMany({
-      identifier: normalizedEmail,
-    });
-
-    // Save new OTP in MongoDB
     await Otp.create({
-      identifier: normalizedEmail,
+      identifier: email,
       otp,
       expiresAt,
     });
 
-    // =====================================
-    // SEND EMAIL USING RESEND API
-    // =====================================
-
-    const emailResponse = await fetch("https://api.resend.com/emails", {
+    // ===============================
+    // SEND EMAIL USING BREVO API
+    // ===============================
+    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL,
-        to: [normalizedEmail],
+        sender: {
+          name: process.env.BREVO_FROM_NAME || "DocGenie",
+          email: process.env.BREVO_FROM_EMAIL,
+        },
+
+        to: [
+          {
+            email: email,
+          },
+        ],
+
         subject: "DocGenie Verification OTP",
 
-        text: `Your DocGenie verification OTP is ${otp}. This OTP is valid for 5 minutes. Do not share this OTP with anyone.`,
+        textContent:
+          `Your DocGenie verification OTP is ${otp}. ` +
+          `This OTP is valid for 5 minutes.`,
 
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px;">
-            <h2 style="color: #123B63;">
-              DocGenie Email Verification
-            </h2>
+        htmlContent: `
+            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
+              <h2>DocGenie Email Verification</h2>
 
-            <p>
-              Your DocGenie verification OTP is:
-            </p>
+              <p>Your verification OTP is:</p>
 
-            <div style="
-              font-size: 32px;
-              font-weight: bold;
-              letter-spacing: 8px;
-              padding: 20px;
-              background: #f3f6f9;
-              border-radius: 10px;
-              text-align: center;
-              margin: 20px 0;
-            ">
-              ${otp}
+              <div style="
+                font-size: 32px;
+                font-weight: bold;
+                letter-spacing: 8px;
+                padding: 15px;
+                background: #f3f4f6;
+                text-align: center;
+                border-radius: 8px;
+                margin: 20px 0;
+              ">
+                ${otp}
+              </div>
+
+              <p>This OTP is valid for <strong>5 minutes</strong>.</p>
+
+              <p>
+                If you did not request this code, you can safely ignore this email.
+              </p>
+
+              <p>— DocGenie Team</p>
             </div>
-
-            <p>
-              This OTP is valid for <strong>5 minutes</strong>.
-            </p>
-
-            <p>
-              Please do not share this OTP with anyone.
-            </p>
-
-            <p>
-              If you did not request this verification code, you can safely ignore this email.
-            </p>
-
-            <br />
-
-            <p>
-              Regards,<br />
-              <strong>DocGenie Team</strong>
-            </p>
-          </div>
-        `,
+          `,
       }),
+
       signal: AbortSignal.timeout(15000),
     });
 
-    const emailData = await emailResponse.json();
+    const brevoData = await brevoResponse.json();
 
-    // Resend returned an error
-    if (!emailResponse.ok) {
-      console.error("Resend email error:", emailData);
+    console.log("Brevo response:", brevoResponse.status, brevoData);
 
-      // Remove OTP because email was not sent
+    if (!brevoResponse.ok) {
+      console.error("Brevo email error:", brevoData);
+
+      // Don't leave an OTP in the database if email failed
       await Otp.deleteMany({
-        identifier: normalizedEmail,
+        identifier: email,
       });
 
       return res.status(500).json({
         success: false,
-        message:
-          emailData?.message || "Unable to send OTP email. Please try again.",
+        message: "Unable to send OTP",
       });
     }
 
-    console.log(
-      `OTP email sent successfully to ${normalizedEmail}. Resend ID: ${emailData?.id || "unknown"}`,
-    );
+    console.log(`Email OTP sent successfully to ${email}`);
 
     return res.status(200).json({
       success: true,
@@ -154,17 +124,6 @@ const sendOTP = async (req, res) => {
   } catch (error) {
     console.error("Send OTP error:", error);
 
-    // Clean up OTP if email sending failed
-    try {
-      if (req.body?.email) {
-        await Otp.deleteMany({
-          identifier: req.body.email.trim().toLowerCase(),
-        });
-      }
-    } catch (cleanupError) {
-      console.error("OTP cleanup error:", cleanupError);
-    }
-
     return res.status(500).json({
       success: false,
       message: "Unable to send OTP",
@@ -172,13 +131,13 @@ const sendOTP = async (req, res) => {
   }
 };
 
-// =============================
+// ===============================
 // VERIFY EMAIL OTP
-// =============================
-
+// ===============================
 const verifyOTP = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
+    const otp = req.body.otp?.trim();
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -187,33 +146,18 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // Find OTP
     const otpRecord = await Otp.findOne({
-      identifier: normalizedEmail,
+      identifier: email,
+      otp: otp,
     });
 
     if (!otpRecord) {
       return res.status(400).json({
         success: false,
-        message: "OTP expired or not found",
+        message: "Invalid OTP",
       });
     }
 
-    // Maximum attempts
-    if (otpRecord.attempts >= 5) {
-      await Otp.deleteOne({
-        _id: otpRecord._id,
-      });
-
-      return res.status(429).json({
-        success: false,
-        message: "Too many attempts. Please request a new OTP.",
-      });
-    }
-
-    // Check expiry
     if (otpRecord.expiresAt < new Date()) {
       await Otp.deleteOne({
         _id: otpRecord._id,
@@ -225,44 +169,31 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // Check OTP
-    if (otpRecord.otp !== otp.toString()) {
-      otpRecord.attempts += 1;
-
-      await otpRecord.save();
-
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP",
-      });
-    }
-
-    // OTP correct
+    // OTP is valid
     await Otp.deleteOne({
       _id: otpRecord._id,
     });
 
     return res.status(200).json({
       success: true,
-      message: "OTP verified successfully",
+      message: "Email verified successfully",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "OTP verification failed",
+      message: "Unable to verify OTP",
     });
   }
 };
 
-// =============================
+// ===============================
 // SEND PHONE OTP
-// =============================
-
+// ===============================
 const sendPhoneOTP = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const phone = req.body.phone?.trim();
 
     if (!phone) {
       return res.status(400).json({
@@ -285,13 +216,11 @@ const sendPhoneOTP = async (req, res) => {
       expiresAt,
     });
 
-    // Development mode:
-    // No paid SMS service is used.
     console.log(`Phone OTP for ${phone}: ${otp}`);
 
     return res.status(200).json({
       success: true,
-      message: "Phone OTP generated successfully",
+      message: "Phone OTP generated",
       developmentOTP: otp,
     });
   } catch (error) {
@@ -299,18 +228,18 @@ const sendPhoneOTP = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to generate phone OTP",
+      message: "Unable to send phone OTP",
     });
   }
 };
 
-// =============================
+// ===============================
 // VERIFY PHONE OTP
-// =============================
-
+// ===============================
 const verifyPhoneOTP = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const phone = req.body.phone?.trim();
+    const otp = req.body.otp?.trim();
 
     if (!phone || !otp) {
       return res.status(400).json({
@@ -321,28 +250,16 @@ const verifyPhoneOTP = async (req, res) => {
 
     const otpRecord = await PhoneOtp.findOne({
       phone,
+      otp,
     });
 
     if (!otpRecord) {
       return res.status(400).json({
         success: false,
-        message: "OTP expired or not found",
+        message: "Invalid OTP",
       });
     }
 
-    // Maximum attempts
-    if (otpRecord.attempts >= 5) {
-      await PhoneOtp.deleteOne({
-        _id: otpRecord._id,
-      });
-
-      return res.status(429).json({
-        success: false,
-        message: "Too many attempts. Please request a new OTP.",
-      });
-    }
-
-    // Check expiry
     if (otpRecord.expiresAt < new Date()) {
       await PhoneOtp.deleteOne({
         _id: otpRecord._id,
@@ -354,44 +271,27 @@ const verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    // Check OTP
-    if (otpRecord.otp !== otp.toString()) {
-      otpRecord.attempts += 1;
-
-      await otpRecord.save();
-
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP",
-      });
-    }
-
-    // OTP correct
     await PhoneOtp.deleteOne({
       _id: otpRecord._id,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Phone number verified successfully",
+      message: "Phone verified successfully",
     });
   } catch (error) {
     console.error("Verify phone OTP error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Phone OTP verification failed",
+      message: "Unable to verify phone OTP",
     });
   }
 };
 
-// =============================
-// EXPORT CONTROLLERS
-// =============================
-
 module.exports = {
-  sendPhoneOTP,
-  verifyPhoneOTP,
   sendOTP,
   verifyOTP,
+  sendPhoneOTP,
+  verifyPhoneOTP,
 };
