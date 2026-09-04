@@ -18,7 +18,7 @@ function VerifyEmail({
   ]);
 
   const inputs = useRef([]);
-
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const changeOtp = (value, index) => {
     if (!/^\d?$/.test(value)) return;
 
@@ -50,7 +50,7 @@ function VerifyEmail({
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/verify-otp",
+        `${API_URL}/api/auth/verify-otp`,
         {
           method: "POST",
           headers: {
@@ -80,7 +80,7 @@ function VerifyEmail({
   const resendOTP = async () => {
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/send-otp",
+        `${API_URL}/api/auth/send-otp`,
         {
           method: "POST",
           headers: {

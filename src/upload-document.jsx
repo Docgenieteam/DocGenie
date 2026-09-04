@@ -27,6 +27,7 @@ function UploadDocument({
 
   const [uploading, setUploading] =
     useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   // =====================================================
   // FILE SELECTION
@@ -196,7 +197,7 @@ function UploadDocument({
 
       const response =
         await fetch(
-          "http://localhost:5000/api/documents",
+          `${API_URL}/api/documents`,
           {
             method: "POST",
 
