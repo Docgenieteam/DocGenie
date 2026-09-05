@@ -17,8 +17,10 @@ const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
+// Connect to MongoDB
 connectDB();
 
+// Middleware
 app.use(
   cors({
     origin: true,
@@ -28,10 +30,20 @@ app.use(
 
 app.use(express.json());
 
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/notifications", notificationRoutes);
 
+// Temporary deployment test route
+app.get("/api/test-route", (req, res) => {
+  res.json({
+    success: true,
+    message: "NEW CODE IS RUNNING",
+  });
+});
+
+// Root health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -39,6 +51,7 @@ app.get("/", (req, res) => {
   });
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
