@@ -13,7 +13,10 @@ import {
   onMessage,
 } from "firebase/messaging";
 
-import { messaging } from "./firebase";
+import {
+  messaging,
+  initializeMessaging,
+} from "./firebase";
 
 // =====================================================
 // API CONFIGURATION
@@ -364,7 +367,14 @@ function App() {
           return;
         }
 
-        if (!messaging) {
+        // -------------------------------------------------
+        // INITIALIZE FIREBASE MESSAGING
+        // -------------------------------------------------
+
+        const firebaseMessaging =
+          await initializeMessaging();
+
+        if (!firebaseMessaging) {
           console.warn(
             "FCM: Firebase Messaging is not available."
           );
@@ -416,11 +426,31 @@ function App() {
           return;
         }
 
+        // -------------------------------------------------
+        // REGISTER FIREBASE SERVICE WORKER
+        // -------------------------------------------------
+
+        const registration =
+          await navigator.serviceWorker.register(
+            "/firebase-messaging-sw.js"
+          );
+
+        console.log(
+          "FCM: Firebase service worker registered."
+        );
+
+        // -------------------------------------------------
+        // GET FCM TOKEN
+        // -------------------------------------------------
+
         const fcmToken =
           await getToken(
-            messaging,
+            firebaseMessaging,
             {
               vapidKey,
+
+              serviceWorkerRegistration:
+                registration,
             }
           );
 
@@ -435,6 +465,10 @@ function App() {
         console.log(
           "FCM token received successfully."
         );
+
+        // -------------------------------------------------
+        // SAVE TOKEN TO BACKEND
+        // -------------------------------------------------
 
         const response =
           await fetch(
@@ -474,6 +508,10 @@ function App() {
           return;
         }
 
+        // -------------------------------------------------
+        // SAVE TOKEN LOCALLY
+        // -------------------------------------------------
+
         localStorage.setItem(
           "docgenie-fcm-token",
           fcmToken
@@ -495,62 +533,70 @@ function App() {
   // =====================================================
 
   useEffect(() => {
-    if (!messaging) {
-      return;
-    }
-
-    if (
-      !("Notification" in window)
-    ) {
-      return;
-    }
-
     let unsubscribe;
 
-    try {
-      unsubscribe =
-        onMessage(
-          messaging,
-          (payload) => {
-            console.log(
-              "FCM foreground message:",
-              payload
-            );
+    const setupForegroundMessaging =
+      async () => {
+        try {
+          const firebaseMessaging =
+            await initializeMessaging();
 
-            const title =
-              payload.notification?.title ||
-              "DocGenie";
-
-            const body =
-              payload.notification?.body ||
-              "You have a new notification.";
-
-            if (
-              Notification.permission ===
-              "granted"
-            ) {
-              new Notification(
-                title,
-                {
-                  body,
-
-                  icon:
-                    `${import.meta.env.BASE_URL}docgenie-logo.png`,
-                }
-              );
-            } else {
-              console.log(
-                `${title}: ${body}`
-              );
-            }
+          if (!firebaseMessaging) {
+            return;
           }
-        );
-    } catch (error) {
-      console.error(
-        "FCM foreground listener error:",
-        error
-      );
-    }
+
+          if (
+            !("Notification" in window)
+          ) {
+            return;
+          }
+
+          unsubscribe =
+            onMessage(
+              firebaseMessaging,
+              (payload) => {
+                console.log(
+                  "FCM foreground message:",
+                  payload
+                );
+
+                const title =
+                  payload.notification?.title ||
+                  "DocGenie";
+
+                const body =
+                  payload.notification?.body ||
+                  "You have a new notification.";
+
+                if (
+                  Notification.permission ===
+                  "granted"
+                ) {
+                  new Notification(
+                    title,
+                    {
+                      body,
+
+                      icon:
+                        `${import.meta.env.BASE_URL}docgenie-logo.png`,
+                    }
+                  );
+                } else {
+                  console.log(
+                    `${title}: ${body}`
+                  );
+                }
+              }
+            );
+        } catch (error) {
+          console.error(
+            "FCM foreground listener error:",
+            error
+          );
+        }
+      };
+
+    setupForegroundMessaging();
 
     return () => {
       if (unsubscribe) {
