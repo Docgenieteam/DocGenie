@@ -14,14 +14,6 @@ import { messaging } from "./firebase";
 // =====================================================
 // API CONFIGURATION
 // =====================================================
-//
-// Local development:
-// VITE_API_URL=http://localhost:5000
-//
-// Deployed application:
-// VITE_API_URL=https://your-backend-url.com
-//
-// =====================================================
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -54,6 +46,12 @@ import DocumentDetails from "./document-details.jsx";
 import UploadDocument from "./upload-document.jsx";
 import ShareDocument from "./share-document.jsx";
 import Reminders from "./reminders.jsx";
+
+// =====================================================
+// SCAN DOCUMENT
+// =====================================================
+
+import ScanDocument from "./scan-document.jsx";
 
 // =====================================================
 // CSS
@@ -259,10 +257,6 @@ function App() {
           "docgenie-token"
         );
 
-      // -------------------------------------------------
-      // USER MUST BE LOGGED IN
-      // -------------------------------------------------
-
       if (!token) {
         console.log(
           "FCM: User is not logged in."
@@ -271,10 +265,6 @@ function App() {
         return;
       }
 
-      // -------------------------------------------------
-      // CHECK FIREBASE MESSAGING
-      // -------------------------------------------------
-
       if (!messaging) {
         console.warn(
           "FCM: Firebase Messaging is not available."
@@ -282,10 +272,6 @@ function App() {
 
         return;
       }
-
-      // -------------------------------------------------
-      // CHECK BROWSER SUPPORT
-      // -------------------------------------------------
 
       if (
         !("Notification" in window)
@@ -296,10 +282,6 @@ function App() {
 
         return;
       }
-
-      // -------------------------------------------------
-      // CHECK VAPID KEY
-      // -------------------------------------------------
 
       const vapidKey =
         import.meta.env
@@ -312,10 +294,6 @@ function App() {
 
         return;
       }
-
-      // -------------------------------------------------
-      // ASK NOTIFICATION PERMISSION
-      // -------------------------------------------------
 
       let permission =
         Notification.permission;
@@ -332,10 +310,6 @@ function App() {
 
         return;
       }
-
-      // -------------------------------------------------
-      // GET FIREBASE FCM TOKEN
-      // -------------------------------------------------
 
       const fcmToken =
         await getToken(
@@ -356,10 +330,6 @@ function App() {
       console.log(
         "FCM token received successfully."
       );
-
-      // -------------------------------------------------
-      // SAVE TOKEN TO BACKEND
-      // -------------------------------------------------
 
       const response =
         await fetch(
@@ -397,10 +367,6 @@ function App() {
 
         return;
       }
-
-      // -------------------------------------------------
-      // SAVE LOCALLY
-      // -------------------------------------------------
 
       localStorage.setItem(
         "docgenie-fcm-token",
@@ -452,10 +418,6 @@ function App() {
             const body =
               payload.notification?.body ||
               "You have a new notification.";
-
-            // -------------------------------------------------
-            // SHOW BROWSER NOTIFICATION
-            // -------------------------------------------------
 
             if (
               Notification.permission ===
@@ -696,7 +658,7 @@ function App() {
   };
 
   // =====================================================
-  // LOAD USER DOCUMENTS FROM BACKEND
+  // LOAD USER DOCUMENTS
   // =====================================================
 
   const loadDocuments = async () => {
@@ -758,7 +720,7 @@ function App() {
   };
 
   // =====================================================
-  // CREATE PASSWORD / REGISTER
+  // CREATE ACCOUNT
   // =====================================================
 
   const handleCreatePassword =
@@ -866,10 +828,6 @@ function App() {
           return;
         }
 
-        // -------------------------------------------------
-        // LOGIN REQUEST
-        // -------------------------------------------------
-
         const response =
           await fetch(
             `${API_URL}/api/auth/login`,
@@ -906,10 +864,6 @@ function App() {
           return;
         }
 
-        // -------------------------------------------------
-        // LOGIN SUCCESSFUL
-        // -------------------------------------------------
-
         const loggedInUser =
           data.user ||
           data;
@@ -932,18 +886,10 @@ function App() {
             email,
         });
 
-        // -------------------------------------------------
-        // SAVE LOGIN STATUS
-        // -------------------------------------------------
-
         localStorage.setItem(
           "isLoggedIn",
           "true"
         );
-
-        // -------------------------------------------------
-        // SAVE JWT
-        // -------------------------------------------------
 
         if (data.token) {
           localStorage.setItem(
@@ -952,15 +898,7 @@ function App() {
           );
         }
 
-        // -------------------------------------------------
-        // LOAD USER DOCUMENTS
-        // -------------------------------------------------
-
         await loadDocuments();
-
-        // -------------------------------------------------
-        // GO TO HOME
-        // -------------------------------------------------
 
         navigate("home");
       } catch (error) {
@@ -1355,16 +1293,6 @@ function App() {
           return;
         }
 
-        // -------------------------------------------------
-        // IMPORTANT
-        // -------------------------------------------------
-        //
-        // This biometric implementation does not
-        // generate a new JWT.
-        //
-        // Therefore a valid JWT must already exist.
-        // -------------------------------------------------
-
         const token =
           localStorage.getItem(
             "docgenie-token"
@@ -1487,6 +1415,25 @@ function App() {
         ...previous,
       ]
     );
+  };
+
+  // =====================================================
+  // SCAN COMPLETE
+  // =====================================================
+
+  const handleScanComplete = (
+    scannedImage
+  ) => {
+    if (!scannedImage) {
+      return;
+    }
+
+    sessionStorage.setItem(
+      "docgenie-scanned-document",
+      scannedImage
+    );
+
+    navigate("upload");
   };
 
   // =====================================================
@@ -1777,6 +1724,21 @@ function App() {
           }
           onUpload={
             addDocument
+          }
+        />
+      )}
+
+      {/* =================================================
+          SCAN DOCUMENT
+      ================================================= */}
+
+      {page === "scan" && (
+        <ScanDocument
+          onNavigate={
+            navigate
+          }
+          onScanComplete={
+            handleScanComplete
           }
         />
       )}

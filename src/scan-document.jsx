@@ -1,59 +1,45 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  ChevronLeft,
-  Camera,
-  RotateCcw,
-  Check,
-  X,
-  CalendarDays,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-function ScanDocument({
-  onNavigate,
-  onUpload,
-}) {
+function ScanDocument({ onNavigate, onScanComplete }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  const [cameraActive, setCameraActive] =
-    useState(false);
-
-  const [capturedImage, setCapturedImage] =
-    useState("");
-
-  const [name, setName] =
-    useState("");
-
-  const [category, setCategory] =
-    useState("");
-
-  const [expiry, setExpiry] =
-    useState("");
-
-  const [description, setDescription] =
-    useState("");
-
+  const [cameraError, setCameraError] = useState("");
+  const [cameraReady, setCameraReady] = useState(false);
+  const [capturedImage, setCapturedImage] = useState("");
 
   // =====================================================
   // START CAMERA
   // =====================================================
 
   const startCamera = async () => {
-
     try {
+      setCameraError("");
+      setCameraReady(false);
 
-      if (
-        !navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia
-      ) {
-        alert(
-          "Camera access is not supported by this browser."
+      if (!navigator.mediaDevices) {
+        setCameraError(
+          "Camera is not supported by this browser."
         );
-
         return;
       }
 
+      if (!navigator.mediaDevices.getUserMedia) {
+        setCameraError(
+          "Camera access is not available in this browser."
+        );
+        return;
+      }
+
+      // Stop previous camera if one exists
+      if (streamRef.current) {
+        streamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
+
+        streamRef.current = null;
+      }
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
@@ -71,664 +57,408 @@ function ScanDocument({
           audio: false,
         });
 
-
       streamRef.current = stream;
 
-
       if (videoRef.current) {
-
-        videoRef.current.srcObject =
-          stream;
+        videoRef.current.srcObject = stream;
 
         await videoRef.current.play();
+
+        setCameraReady(true);
       }
-
-
-      setCameraActive(true);
-
     } catch (error) {
-
       console.error(
-        "Camera error:",
+        "Camera access error:",
         error
       );
 
-      alert(
-        "Unable to access the camera. Please allow camera permission and try again."
-      );
-    }
-  };
-
-
-  // =====================================================
-  // STOP CAMERA
-  // =====================================================
-
-  const stopCamera = () => {
-
-    if (streamRef.current) {
-
-      streamRef.current
-        .getTracks()
-        .forEach((track) =>
-          track.stop()
+      if (error.name === "NotAllowedError") {
+        setCameraError(
+          "Camera permission was denied. Please allow camera access in your browser settings and try again."
         );
-
-      streamRef.current = null;
+      } else if (
+        error.name === "NotFoundError"
+      ) {
+        setCameraError(
+          "No camera was found on this device."
+        );
+      } else if (
+        error.name === "NotReadableError"
+      ) {
+        setCameraError(
+          "The camera is already being used by another application."
+        );
+      } else if (
+        error.name === "SecurityError"
+      ) {
+        setCameraError(
+          "Camera access is blocked because this page is not using a secure connection."
+        );
+      } else {
+        setCameraError(
+          "Unable to open the camera. Please check your browser permissions and try again."
+        );
+      }
     }
-
-    setCameraActive(false);
   };
 
-
   // =====================================================
-  // CAMERA CLEANUP
+  // START CAMERA WHEN PAGE OPENS
   // =====================================================
 
   useEffect(() => {
-
     startCamera();
 
     return () => {
-      stopCamera();
-    };
+      if (streamRef.current) {
+        streamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
 
+        streamRef.current = null;
+      }
+    };
   }, []);
 
-
   // =====================================================
-  // CAPTURE DOCUMENT
+  // CAPTURE PHOTO
   // =====================================================
 
   const captureDocument = () => {
-
-    const video =
-      videoRef.current;
-
-    const canvas =
-      canvasRef.current;
-
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
 
     if (!video || !canvas) {
+      alert("Camera is not ready.");
       return;
     }
 
+    if (!cameraReady) {
+      alert("Please wait for the camera to open.");
+      return;
+    }
 
-    if (
-      video.videoWidth === 0 ||
-      video.videoHeight === 0
-    ) {
+    const width = video.videoWidth;
+    const height = video.videoHeight;
 
+    if (!width || !height) {
       alert(
-        "Camera is not ready yet. Please try again."
+        "Camera image is not available yet. Please try again."
       );
-
       return;
     }
 
-
-    canvas.width =
-      video.videoWidth;
-
-    canvas.height =
-      video.videoHeight;
-
+    canvas.width = width;
+    canvas.height = height;
 
     const context =
       canvas.getContext("2d");
-
 
     context.drawImage(
       video,
       0,
       0,
-      canvas.width,
-      canvas.height
+      width,
+      height
     );
-
 
     const image =
       canvas.toDataURL(
         "image/jpeg",
-        0.92
+        0.9
       );
-
 
     setCapturedImage(image);
 
-    stopCamera();
-  };
+    // Stop camera after capture
+    if (streamRef.current) {
+      streamRef.current
+        .getTracks()
+        .forEach((track) => track.stop());
 
+      streamRef.current = null;
+    }
+
+    setCameraReady(false);
+  };
 
   // =====================================================
   // RETAKE
   // =====================================================
 
-  const retake = async () => {
-
+  const retakePhoto = () => {
     setCapturedImage("");
-
-    await startCamera();
+    startCamera();
   };
 
-
   // =====================================================
-  // SAVE SCANNED DOCUMENT
+  // USE SCANNED DOCUMENT
   // =====================================================
 
-  const saveScan = () => {
-
+  const useDocument = () => {
     if (!capturedImage) {
-
-      alert(
-        "Please scan a document first."
-      );
-
+      alert("Please capture a document first.");
       return;
     }
 
-
-    if (!name.trim()) {
-
-      alert(
-        "Please enter document name."
+    if (onScanComplete) {
+      onScanComplete(capturedImage);
+    } else {
+      // Store temporarily if another page needs it
+      sessionStorage.setItem(
+        "docgenie-scanned-document",
+        capturedImage
       );
 
+      onNavigate("upload");
+    }
+  };
+
+  // =====================================================
+  // GALLERY
+  // =====================================================
+
+  const handleGallery = (event) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
       return;
     }
 
-
-    if (!category) {
-
+    if (!file.type.startsWith("image/")) {
       alert(
-        "Please select a category."
+        "Please select an image file."
       );
-
       return;
     }
 
+    const reader =
+      new FileReader();
 
-    // Convert the captured image
-    // into a File object.
-
-    const byteString =
-      atob(
-        capturedImage.split(",")[1]
+    reader.onload = () => {
+      setCapturedImage(
+        reader.result
       );
 
-    const mimeString =
-      capturedImage
-        .split(",")[0]
-        .split(":")[1]
-        .split(";")[0];
+      // Stop camera
+      if (streamRef.current) {
+        streamRef.current
+          .getTracks()
+          .forEach((track) =>
+            track.stop()
+          );
 
+        streamRef.current = null;
+      }
 
-    const arrayBuffer =
-      new ArrayBuffer(
-        byteString.length
-      );
-
-    const intArray =
-      new Uint8Array(
-        arrayBuffer
-      );
-
-
-    for (
-      let i = 0;
-      i < byteString.length;
-      i++
-    ) {
-
-      intArray[i] =
-        byteString.charCodeAt(i);
-    }
-
-
-    const scannedFile =
-      new File(
-        [intArray],
-        `${name.trim()}.jpg`,
-        {
-          type: mimeString,
-        }
-      );
-
-
-    const newDocument = {
-
-      id:
-        Date.now().toString() +
-        Math.random()
-          .toString(36)
-          .substring(2, 8),
-
-      name:
-        name.trim(),
-
-      category,
-
-      description:
-        description.trim(),
-
-      date:
-        new Date().toLocaleDateString(
-          "en-GB",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        ),
-
-      expiry:
-        expiry || null,
-
-      icon:
-        category === "Identity"
-          ? "identity"
-          : category === "Education"
-          ? "education"
-          : category === "Financial"
-          ? "financial"
-          : category === "Health"
-          ? "health"
-          : category === "Property"
-          ? "property"
-          : "identity",
-
-      color:
-        category === "Education" ||
-        category === "Health"
-          ? "red"
-          : category === "Property"
-          ? "orange"
-          : "blue",
-
-      fileName:
-        scannedFile.name,
-
-      fileType:
-        scannedFile.type,
-
-      fileSize:
-        scannedFile.size,
-
-      fileData:
-        capturedImage,
-
-      scanned:
-        true,
+      setCameraReady(false);
     };
 
+    reader.onerror = () => {
+      alert(
+        "Unable to read the selected image."
+      );
+    };
 
-    onUpload(newDocument);
+    reader.readAsDataURL(file);
 
-    alert(
-      "Document scanned successfully!"
-    );
-
-    onNavigate("home");
+    event.target.value = "";
   };
 
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
-    <div className="mobile-page">
+    <div className="scan-page">
 
+      {/* HEADER */}
 
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
-      <header className="inner-header">
-
+      <div className="scan-header">
         <button
-          className="back-button"
-          onClick={() => {
-
-            stopCamera();
-
-            onNavigate("home");
-
-          }}
+          className="scan-back-button"
+          onClick={() =>
+            onNavigate("home")
+          }
+          type="button"
         >
-          <ChevronLeft size={23} />
+          ←
         </button>
 
-        <h1>
-          Scan Document
-        </h1>
+        <h1>Scan Document</h1>
 
-        <div
-          style={{
-            width: 24,
-          }}
-        />
+        <div className="scan-header-space" />
+      </div>
 
-      </header>
+      {/* CAMERA */}
 
+      <div className="scan-content">
 
-      <main
-        className="page-content"
-        style={{
-          paddingBottom: "40px",
-        }}
-      >
+        <div className="camera-container">
 
+          {!capturedImage ? (
+            <>
+              <video
+                ref={videoRef}
+                className="camera-video"
+                autoPlay
+                playsInline
+                muted
+              />
 
-        {/* =================================================
-            CAMERA / PREVIEW
-        ================================================= */}
+              {!cameraReady &&
+                !cameraError && (
+                  <div className="camera-message">
+                    <div className="camera-icon">
+                      📷
+                    </div>
 
-        {!capturedImage ? (
+                    <p>
+                      Opening camera...
+                    </p>
+                  </div>
+                )}
 
-          <div
-            style={{
-              position: "relative",
-              width: "100%",
-              overflow: "hidden",
-              borderRadius: "18px",
-              background: "#111",
-              marginBottom: "20px",
-            }}
-          >
+              {cameraError && (
+                <div className="camera-message error">
+                  <div className="camera-icon">
+                    📷
+                  </div>
 
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{
-                width: "100%",
-                display: "block",
-                minHeight: "300px",
-                objectFit: "cover",
-              }}
-            />
+                  <p>
+                    {cameraError}
+                  </p>
 
-
-            {/* DOCUMENT GUIDE */}
-
-            <div
-              style={{
-                position: "absolute",
-                inset: "12%",
-                border:
-                  "2px solid white",
-                borderRadius: "10px",
-                pointerEvents: "none",
-              }}
-            />
-
-
-            <div
-              style={{
-                position: "absolute",
-                bottom: "18px",
-                left: 0,
-                right: 0,
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-
-              <button
-                type="button"
-                onClick={
-                  captureDocument
-                }
-                disabled={
-                  !cameraActive
-                }
-                style={{
-                  width: "68px",
-                  height: "68px",
-                  borderRadius: "50%",
-                  border:
-                    "5px solid white",
-                  background:
-                    "#2563eb",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-              >
-
-                <Camera
-                  size={28}
-                  color="white"
-                />
-
-              </button>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div
-            style={{
-              marginBottom: "20px",
-            }}
-          >
-
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="retry-camera-button"
+                  >
+                    Try Camera Again
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
             <img
               src={capturedImage}
               alt="Scanned document"
-              style={{
-                width: "100%",
-                display: "block",
-                borderRadius: "18px",
-                background: "#eee",
-              }}
+              className="captured-image"
             />
+          )}
 
+          {/* DOCUMENT FRAME */}
 
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                marginTop: "12px",
-              }}
-            >
+          {!capturedImage &&
+            cameraReady && (
+              <div className="document-frame">
+                <div className="corner top-left" />
+                <div className="corner top-right" />
+                <div className="corner bottom-left" />
+                <div className="corner bottom-right" />
+              </div>
+            )}
 
-              <button
-                type="button"
-                onClick={retake}
-                style={{
-                  flex: 1,
-                  padding: "13px",
-                  borderRadius: "10px",
-                  border: "1px solid #ddd",
-                  background: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                }}
-              >
+        </div>
 
-                <RotateCcw size={17} />
+        {/* HIDDEN CANVAS */}
 
-                Retake
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: "none",
+          }}
+        />
 
-              </button>
+        {/* CAMERA ERROR */}
 
-            </div>
+        {cameraError && (
+          <div className="camera-help">
+            <p>
+              <strong>
+                Camera permission needed
+              </strong>
+            </p>
 
+            <p>
+              If you are using your phone, tap
+              the camera/lock icon in the
+              browser address bar and allow
+              camera access.
+            </p>
           </div>
-
         )}
 
+        {/* CAPTURE BUTTON */}
 
-        {/* =================================================
-            DOCUMENT DETAILS
-        ================================================= */}
-
-        {capturedImage && (
-
+        {!capturedImage ? (
           <>
+            <button
+              type="button"
+              className="capture-button"
+              onClick={captureDocument}
+              disabled={!cameraReady}
+            >
+              📷
+              <span>
+                Capture Document
+              </span>
+            </button>
 
-            <h3 className="section-title">
-              Document Details
-            </h3>
+            {/* GALLERY */}
 
-
-            {/* NAME */}
-
-            <div className="form-group">
-
-              <label>
-                Document Name
-              </label>
+            <label
+              className="gallery-button"
+            >
+              🖼️
+              <span>
+                Choose Image From Gallery
+              </span>
 
               <input
-                placeholder="Enter document name"
-                value={name}
-                onChange={(e) =>
-                  setName(
-                    e.target.value
-                  )
+                type="file"
+                accept="image/*"
+                onChange={
+                  handleGallery
                 }
+                style={{
+                  display: "none",
+                }}
               />
+            </label>
 
-            </div>
-
-
-            {/* CATEGORY */}
-
-            <div className="form-group">
-
-              <label>
-                Category
-              </label>
-
-              <select
-                value={category}
-                onChange={(e) =>
-                  setCategory(
-                    e.target.value
-                  )
-                }
-              >
-
-                <option value="">
-                  Select Category
-                </option>
-
-                <option value="Identity">
-                  Identity
-                </option>
-
-                <option value="Education">
-                  Education
-                </option>
-
-                <option value="Financial">
-                  Financial
-                </option>
-
-                <option value="Health">
-                  Health
-                </option>
-
-                <option value="Property">
-                  Property
-                </option>
-
-                <option value="Others">
-                  Others
-                </option>
-
-              </select>
-
-            </div>
-
-
-            {/* EXPIRY */}
-
-            <div className="form-group">
-
-              <label>
-                Expiry Date (Optional)
-              </label>
-
-              <div
-                className="input-with-icon"
-              >
-
-                <input
-                  type="date"
-                  value={expiry}
-                  onChange={(e) =>
-                    setExpiry(
-                      e.target.value
-                    )
-                  }
-                />
-
-                <CalendarDays
-                  size={18}
-                />
-
-              </div>
-
-            </div>
-
-
-            {/* DESCRIPTION */}
-
-            <div className="form-group">
-
-              <label>
-                Description (Optional)
-              </label>
-
-              <textarea
-                placeholder="Enter description"
-                value={description}
-                onChange={(e) =>
-                  setDescription(
-                    e.target.value
-                  )
-                }
-              />
-
-            </div>
-
-
-            {/* SAVE */}
+            <p className="scan-instruction">
+              Place your document inside the
+              camera frame and make sure the
+              document is clearly visible.
+            </p>
+          </>
+        ) : (
+          <>
+            {/* RETAKE */}
 
             <button
               type="button"
-              onClick={saveScan}
-              className="upload-submit"
+              className="retake-button"
+              onClick={retakePhoto}
             >
-
-              <Check size={18} />
-
-              Save Scanned Document
-
+              🔄 Retake
             </button>
 
-          </>
+            {/* USE DOCUMENT */}
 
+            <button
+              type="button"
+              className="use-document-button"
+              onClick={useDocument}
+            >
+              ✓ Use This Document
+            </button>
+          </>
         )}
 
-      </main>
-
-
-      {/* Hidden canvas */}
-
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: "none",
-        }}
-      />
-
+      </div>
     </div>
   );
 }
