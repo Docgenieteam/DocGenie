@@ -432,7 +432,7 @@ function App() {
 
         const registration =
           await navigator.serviceWorker.register(
-            "/firebase-messaging-sw.js"
+            `${import.meta.env.BASE_URL}firebase-messaging-sw.js`,
           );
 
         console.log(
