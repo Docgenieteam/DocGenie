@@ -28,6 +28,7 @@ export const getFCMToken = async () => {
     const registration = await navigator.serviceWorker.register(
       `${import.meta.env.BASE_URL}firebase-messaging-sw.js`,
     );
+    await navigator.serviceWorker.ready;
 
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
