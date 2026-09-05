@@ -1,82 +1,78 @@
-const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 
 const Document = require("../models/Document");
+const { supabase, bucketName } = require("../config/supabase");
 
-// =====================================================
-// GET USER DOCUMENTS
-// =====================================================
-
+// GET ALL DOCUMENTS
 const getDocuments = async (req, res) => {
   try {
     const documents = await Document.find({
       userId: req.user._id,
-    }).sort({
-      createdAt: -1,
-    });
+    }).sort({ createdAt: -1 });
 
-    return res.status(200).json({
+    res.json({
       success: true,
       documents,
     });
   } catch (error) {
     console.error("Get documents error:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Unable to load documents.",
+      message: "Failed to fetch documents",
     });
   }
 };
 
-// =====================================================
 // CREATE / UPLOAD DOCUMENT
-// =====================================================
-
 const createDocument = async (req, res) => {
+  let storageKey = null;
+
   try {
     const { name, category, date, icon, color, expiry, description } = req.body;
-
-    // ---------------------------------------------------
-    // CHECK DOCUMENT NAME
-    // ---------------------------------------------------
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Document name is required.",
-      });
-    }
-
-    // ---------------------------------------------------
-    // CHECK FILE
-    // ---------------------------------------------------
 
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "Document file is required.",
+        message: "Please upload a file",
       });
     }
 
-    // ---------------------------------------------------
-    // CREATE DOCUMENT
-    // ---------------------------------------------------
+    // Create a unique filename
+    const extension = path.extname(req.file.originalname).toLowerCase();
 
+    const uniqueFileName = `${crypto.randomUUID()}${extension}`;
+
+    // Store files inside a folder for each user
+    storageKey = `${req.user._id}/${uniqueFileName}`;
+
+    // Upload file to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(storageKey, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to upload file to Supabase Storage",
+      });
+    }
+
+    // Save document metadata to MongoDB
     const document = await Document.create({
       userId: req.user._id,
 
-      name: name.trim(),
+      name: name?.trim() || req.file.originalname,
 
-      category: category || "Other",
+      category: category?.trim() || "Other",
 
-      date:
-        date ||
-        new Date().toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }),
+      date: date || new Date().toISOString(),
 
       icon: icon || "document",
 
@@ -86,52 +82,43 @@ const createDocument = async (req, res) => {
 
       description: description?.trim() || "",
 
-      // -------------------------------------------------
-      // FILE INFORMATION
-      // -------------------------------------------------
-
       originalFileName: req.file.originalname,
 
-      storageKey: req.file.filename,
+      storageKey,
+
+      storageProvider: "supabase",
 
       fileType: req.file.mimetype,
 
       fileSize: req.file.size,
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
-
-      message: "Document uploaded successfully.",
-
+      message: "Document uploaded successfully",
       document,
     });
   } catch (error) {
     console.error("Create document error:", error);
 
-    // ---------------------------------------------------
-    // DELETE UPLOADED FILE IF DATABASE SAVE FAILED
-    // ---------------------------------------------------
-
-    if (req.file?.path) {
+    // If MongoDB save fails after Supabase upload,
+    // remove the uploaded file from Supabase.
+    if (storageKey) {
       try {
-        fs.unlinkSync(req.file.path);
-      } catch (deleteError) {
-        console.error("Unable to delete uploaded file:", deleteError);
+        await supabase.storage.from(bucketName).remove([storageKey]);
+      } catch (cleanupError) {
+        console.error("Supabase cleanup error:", cleanupError);
       }
     }
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Unable to upload document.",
+      message: "Failed to create document",
     });
   }
 };
 
-// =====================================================
 // GET SINGLE DOCUMENT
-// =====================================================
-
 const getDocument = async (req, res) => {
   try {
     const document = await Document.findOne({
@@ -142,31 +129,28 @@ const getDocument = async (req, res) => {
     if (!document) {
       return res.status(404).json({
         success: false,
-        message: "Document not found.",
+        message: "Document not found",
       });
     }
 
-    return res.status(200).json({
+    res.json({
       success: true,
       document,
     });
   } catch (error) {
     console.error("Get document error:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Unable to load document.",
+      message: "Failed to fetch document",
     });
   }
 };
 
-// =====================================================
-// DELETE DOCUMENT
-// =====================================================
-
-const deleteDocument = async (req, res) => {
+// GET SIGNED FILE URL
+const getDocumentFileUrl = async (req, res) => {
   try {
-    const document = await Document.findOneAndDelete({
+    const document = await Document.findOne({
       _id: req.params.id,
       userId: req.user._id,
     });
@@ -174,37 +158,101 @@ const deleteDocument = async (req, res) => {
     if (!document) {
       return res.status(404).json({
         success: false,
-        message: "Document not found.",
+        message: "Document not found",
       });
     }
 
-    // ---------------------------------------------------
-    // DELETE PHYSICAL FILE
-    // ---------------------------------------------------
+    if (!document.storageKey) {
+      return res.status(404).json({
+        success: false,
+        message: "File is not available",
+      });
+    }
 
-    if (document.storageKey) {
-      const filePath = path.join(
-        __dirname,
-        "..",
-        "uploads",
-        document.storageKey,
-      );
+    if (document.storageProvider !== "supabase") {
+      return res.status(400).json({
+        success: false,
+        message: "Unsupported storage provider",
+      });
+    }
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    // Generate a temporary signed URL.
+    // The URL will remain valid for 1 hour.
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(document.storageKey, 60 * 60);
+
+    if (error) {
+      console.error("Signed URL error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate file URL",
+      });
+    }
+
+    res.json({
+      success: true,
+      url: data.signedUrl,
+      fileName: document.originalFileName,
+      fileType: document.fileType,
+    });
+  } catch (error) {
+    console.error("Get document file URL error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to access document file",
+    });
+  }
+};
+
+// DELETE DOCUMENT
+const deleteDocument = async (req, res) => {
+  try {
+    const document = await Document.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "Document not found",
+      });
+    }
+
+    // Delete actual file from Supabase
+    if (document.storageKey && document.storageProvider === "supabase") {
+      const { error: storageError } = await supabase.storage
+        .from(bucketName)
+        .remove([document.storageKey]);
+
+      if (storageError) {
+        console.error("Supabase delete error:", storageError);
+
+        return res.status(500).json({
+          success: false,
+          message: "Failed to delete file from storage",
+        });
       }
     }
 
-    return res.status(200).json({
+    // Delete metadata from MongoDB
+    await Document.deleteOne({
+      _id: document._id,
+    });
+
+    res.json({
       success: true,
-      message: "Document deleted successfully.",
+      message: "Document deleted successfully",
     });
   } catch (error) {
     console.error("Delete document error:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Unable to delete document.",
+      message: "Failed to delete document",
     });
   }
 };
@@ -213,5 +261,6 @@ module.exports = {
   getDocuments,
   createDocument,
   getDocument,
+  getDocumentFileUrl,
   deleteDocument,
 };

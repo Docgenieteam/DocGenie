@@ -8,7 +8,11 @@ import {
 // FIREBASE
 // =====================================================
 
-import { getToken, onMessage } from "firebase/messaging";
+import {
+  getToken,
+  onMessage,
+} from "firebase/messaging";
+
 import { messaging } from "./firebase";
 
 // =====================================================
@@ -65,110 +69,195 @@ function App() {
   // PROFILE PICTURE
   // =====================================================
 
-  const profileInputRef = useRef(null);
+  const profileInputRef =
+    useRef(null);
 
-  const [profilePic, setProfilePic] = useState(
-    localStorage.getItem("docgenie-profile-pic") || ""
-  );
+  const [profilePic, setProfilePic] =
+    useState(
+      localStorage.getItem(
+        "docgenie-profile-pic"
+      ) || ""
+    );
 
   // =====================================================
   // CURRENT PAGE
   // =====================================================
 
-  const [page, setPage] = useState("loading");
+  const [page, setPage] =
+    useState("loading");
 
   // =====================================================
   // ACCOUNT
   // =====================================================
 
-  const [account, setAccount] = useState({
-    name: "",
-    age: "",
-    phone: "",
-    email: "",
-  });
+  const [account, setAccount] =
+    useState({
+      name: "",
+      age: "",
+      phone: "",
+      email: "",
+    });
 
   // =====================================================
   // PASSWORD
   // =====================================================
 
-  const [password, setPassword] = useState("");
+  const [password, setPassword] =
+    useState("");
 
   // =====================================================
   // DOCUMENTS
   // =====================================================
 
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] =
+    useState([]);
 
   // =====================================================
   // SELECTED DOCUMENT
   // =====================================================
 
-  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [
+    selectedDocument,
+    setSelectedDocument,
+  ] = useState(null);
+
+  // =====================================================
+  // AUTH TOKEN HELPER
+  // =====================================================
+
+  const getAuthToken = () => {
+    return (
+      localStorage.getItem(
+        "docgenie-token"
+      ) ||
+      localStorage.getItem(
+        "token"
+      ) ||
+      sessionStorage.getItem(
+        "docgenie-token"
+      ) ||
+      sessionStorage.getItem(
+        "token"
+      )
+    );
+  };
+
+  // =====================================================
+  // SAVE AUTH TOKEN
+  // =====================================================
+
+  const saveAuthToken = (token) => {
+    if (!token) {
+      return false;
+    }
+
+    localStorage.setItem(
+      "docgenie-token",
+      token
+    );
+
+    // Compatibility with older code
+    localStorage.setItem(
+      "token",
+      token
+    );
+
+    return true;
+  };
 
   // =====================================================
   // EXPIRY STATUS
   // =====================================================
 
-  const getExpiryStatus = (expiry) => {
+  const getExpiryStatus = (
+    expiry
+  ) => {
     if (!expiry) {
       return {
         type: "none",
         label: "No upcoming expiry",
         icon: "✅",
-        className: "expiry-none",
+        className:
+          "expiry-none",
         daysRemaining: null,
       };
     }
 
     const today = new Date();
 
-    today.setHours(0, 0, 0, 0);
+    today.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
-    const parts = expiry.split("-");
+    const parts =
+      expiry.split("-");
 
     if (parts.length !== 3) {
       return {
         type: "none",
         label: "No upcoming expiry",
         icon: "✅",
-        className: "expiry-none",
+        className:
+          "expiry-none",
         daysRemaining: null,
       };
     }
 
-    const year = Number(parts[0]);
-    const month = Number(parts[1]) - 1;
-    const day = Number(parts[2]);
+    const year =
+      Number(parts[0]);
 
-    const expiryDate = new Date(
-      year,
-      month,
-      day
+    const month =
+      Number(parts[1]) - 1;
+
+    const day =
+      Number(parts[2]);
+
+    const expiryDate =
+      new Date(
+        year,
+        month,
+        day
+      );
+
+    expiryDate.setHours(
+      0,
+      0,
+      0,
+      0
     );
-
-    expiryDate.setHours(0, 0, 0, 0);
 
     const difference =
       expiryDate.getTime() -
       today.getTime();
 
-    const daysRemaining = Math.ceil(
-      difference /
-        (1000 * 60 * 60 * 24)
-    );
+    const daysRemaining =
+      Math.ceil(
+        difference /
+          (1000 *
+            60 *
+            60 *
+            24)
+      );
 
-    if (daysRemaining < 0) {
+    if (
+      daysRemaining < 0
+    ) {
       return {
         type: "expired",
         label: "Expired",
         icon: "🔴",
-        className: "expiry-expired",
+        className:
+          "expiry-expired",
         daysRemaining,
       };
     }
 
-    if (daysRemaining <= 7) {
+    if (
+      daysRemaining <= 7
+    ) {
       return {
         type: "7-days",
         label:
@@ -180,27 +269,34 @@ function App() {
                   : "s"
               }`,
         icon: "🟠",
-        className: "expiry-7",
+        className:
+          "expiry-7",
         daysRemaining,
       };
     }
 
-    if (daysRemaining <= 30) {
+    if (
+      daysRemaining <= 30
+    ) {
       return {
         type: "30-days",
         label: `Expiring in ${daysRemaining} days`,
         icon: "🟡",
-        className: "expiry-30",
+        className:
+          "expiry-30",
         daysRemaining,
       };
     }
 
-    if (daysRemaining <= 90) {
+    if (
+      daysRemaining <= 90
+    ) {
       return {
         type: "90-days",
         label: `Expiring in ${daysRemaining} days`,
         icon: "🔵",
-        className: "expiry-90",
+        className:
+          "expiry-90",
         daysRemaining,
       };
     }
@@ -209,7 +305,8 @@ function App() {
       type: "none",
       label: "No upcoming expiry",
       icon: "✅",
-      className: "expiry-none",
+      className:
+        "expiry-none",
       daysRemaining,
     };
   };
@@ -219,13 +316,16 @@ function App() {
   // =====================================================
 
   const documentsWithExpiryStatus =
-    documents.map((document) => ({
-      ...document,
-      expiryStatus:
-        getExpiryStatus(
-          document.expiry
-        ),
-    }));
+    documents.map(
+      (document) => ({
+        ...document,
+
+        expiryStatus:
+          getExpiryStatus(
+            document.expiry
+          ),
+      })
+    );
 
   // =====================================================
   // EXPIRY NOTIFICATIONS
@@ -250,139 +350,145 @@ function App() {
   // SAVE FCM TOKEN TO BACKEND
   // =====================================================
 
-  const registerFCMToken = async () => {
-    try {
-      const token =
-        localStorage.getItem(
-          "docgenie-token"
-        );
-
-      if (!token) {
-        console.log(
-          "FCM: User is not logged in."
-        );
-
-        return;
-      }
-
-      if (!messaging) {
-        console.warn(
-          "FCM: Firebase Messaging is not available."
-        );
-
-        return;
-      }
-
-      if (
-        !("Notification" in window)
-      ) {
-        console.log(
-          "FCM: Browser notifications are not supported."
-        );
-
-        return;
-      }
-
-      const vapidKey =
-        import.meta.env
-          .VITE_FIREBASE_VAPID_KEY;
-
-      if (!vapidKey) {
-        console.warn(
-          "FCM disabled: VITE_FIREBASE_VAPID_KEY is missing."
-        );
-
-        return;
-      }
-
-      let permission =
-        Notification.permission;
-
-      if (permission === "default") {
-        permission =
-          await Notification.requestPermission();
-      }
-
-      if (permission !== "granted") {
-        console.log(
-          "FCM: Notification permission was not granted."
-        );
-
-        return;
-      }
-
-      const fcmToken =
-        await getToken(
-          messaging,
-          {
-            vapidKey,
-          }
-        );
-
-      if (!fcmToken) {
-        console.log(
-          "FCM: Unable to get FCM token."
-        );
-
-        return;
-      }
-
-      console.log(
-        "FCM token received successfully."
-      );
-
-      const response =
-        await fetch(
-          `${API_URL}/api/notifications/fcm-token`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-              token: fcmToken,
-            }),
-          }
-        );
-
-      let data = {};
-
+  const registerFCMToken =
+    async () => {
       try {
-        data = await response.json();
-      } catch {
-        data = {};
-      }
+        const token =
+          getAuthToken();
 
-      if (!response.ok) {
-        console.error(
-          "FCM token save failed:",
-          data
+        if (!token) {
+          console.log(
+            "FCM: User is not logged in."
+          );
+
+          return;
+        }
+
+        if (!messaging) {
+          console.warn(
+            "FCM: Firebase Messaging is not available."
+          );
+
+          return;
+        }
+
+        if (
+          !("Notification" in window)
+        ) {
+          console.log(
+            "FCM: Browser notifications are not supported."
+          );
+
+          return;
+        }
+
+        const vapidKey =
+          import.meta.env
+            .VITE_FIREBASE_VAPID_KEY;
+
+        if (!vapidKey) {
+          console.warn(
+            "FCM disabled: VITE_FIREBASE_VAPID_KEY is missing."
+          );
+
+          return;
+        }
+
+        let permission =
+          Notification.permission;
+
+        if (
+          permission ===
+          "default"
+        ) {
+          permission =
+            await Notification.requestPermission();
+        }
+
+        if (
+          permission !==
+          "granted"
+        ) {
+          console.log(
+            "FCM: Notification permission was not granted."
+          );
+
+          return;
+        }
+
+        const fcmToken =
+          await getToken(
+            messaging,
+            {
+              vapidKey,
+            }
+          );
+
+        if (!fcmToken) {
+          console.log(
+            "FCM: Unable to get FCM token."
+          );
+
+          return;
+        }
+
+        console.log(
+          "FCM token received successfully."
         );
 
-        return;
+        const response =
+          await fetch(
+            `${API_URL}/api/notifications/fcm-token`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${token}`,
+              },
+
+              body: JSON.stringify({
+                token: fcmToken,
+              }),
+            }
+          );
+
+        let data = {};
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (!response.ok) {
+          console.error(
+            "FCM token save failed:",
+            data
+          );
+
+          return;
+        }
+
+        localStorage.setItem(
+          "docgenie-fcm-token",
+          fcmToken
+        );
+
+        console.log(
+          "FCM token saved successfully."
+        );
+      } catch (error) {
+        console.error(
+          "FCM registration error:",
+          error
+        );
       }
-
-      localStorage.setItem(
-        "docgenie-fcm-token",
-        fcmToken
-      );
-
-      console.log(
-        "FCM token saved successfully."
-      );
-    } catch (error) {
-      console.error(
-        "FCM registration error:",
-        error
-      );
-    }
-  };
+    };
 
   // =====================================================
   // FCM FOREGROUND MESSAGE
@@ -481,62 +587,64 @@ function App() {
   // BROWSER EXPIRY NOTIFICATIONS
   // =====================================================
 
-  const sendExpiryNotifications = () => {
-    if (
-      !("Notification" in window)
-    ) {
-      console.log(
-        "Browser notifications are not supported."
-      );
+  const sendExpiryNotifications =
+    () => {
+      if (
+        !("Notification" in window)
+      ) {
+        console.log(
+          "Browser notifications are not supported."
+        );
 
-      return;
-    }
+        return;
+      }
 
-    if (
-      Notification.permission ===
-      "default"
-    ) {
-      Notification.requestPermission().then(
-        (permission) => {
-          if (
-            permission ===
-            "granted"
-          ) {
-            showExpiryNotifications();
-          }
-        }
-      );
-
-      return;
-    }
-
-    if (
-      Notification.permission ===
-      "granted"
-    ) {
-      showExpiryNotifications();
-    }
-  };
-
-  const showExpiryNotifications = () => {
-    expiryNotifications.forEach(
-      (document) => {
-        const status =
-          document.expiryStatus;
-
-        new Notification(
-          "DocGenie Expiry Alert",
-          {
-            body:
-              `${document.name}: ${status.label}`,
-
-            icon:
-              `${import.meta.env.BASE_URL}docgenie-logo.png`,
+      if (
+        Notification.permission ===
+        "default"
+      ) {
+        Notification.requestPermission().then(
+          (permission) => {
+            if (
+              permission ===
+              "granted"
+            ) {
+              showExpiryNotifications();
+            }
           }
         );
+
+        return;
       }
-    );
-  };
+
+      if (
+        Notification.permission ===
+        "granted"
+      ) {
+        showExpiryNotifications();
+      }
+    };
+
+  const showExpiryNotifications =
+    () => {
+      expiryNotifications.forEach(
+        (document) => {
+          const status =
+            document.expiryStatus;
+
+          new Notification(
+            "DocGenie Expiry Alert",
+            {
+              body:
+                `${document.name}: ${status.label}`,
+
+              icon:
+                `${import.meta.env.BASE_URL}docgenie-logo.png`,
+            }
+          );
+        }
+      );
+    };
 
   // =====================================================
   // NAVIGATION
@@ -571,7 +679,9 @@ function App() {
     const file =
       e.target.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     if (
       !file.type.startsWith(
@@ -626,21 +736,23 @@ function App() {
   // OPEN PROFILE PICKER
   // =====================================================
 
-  const openProfilePicker = () => {
-    profileInputRef.current?.click();
-  };
+  const openProfilePicker =
+    () => {
+      profileInputRef.current?.click();
+    };
 
   // =====================================================
   // REMOVE PROFILE PICTURE
   // =====================================================
 
-  const removeProfilePic = () => {
-    setProfilePic("");
+  const removeProfilePic =
+    () => {
+      setProfilePic("");
 
-    localStorage.removeItem(
-      "docgenie-profile-pic"
-    );
-  };
+      localStorage.removeItem(
+        "docgenie-profile-pic"
+      );
+    };
 
   // =====================================================
   // UPDATE ACCOUNT
@@ -661,63 +773,76 @@ function App() {
   // LOAD USER DOCUMENTS
   // =====================================================
 
-  const loadDocuments = async () => {
-    try {
-      const token =
-        localStorage.getItem(
-          "docgenie-token"
-        );
-
-      if (!token) {
-        setDocuments([]);
-
-        return;
-      }
-
-      const response =
-        await fetch(
-          `${API_URL}/api/documents`,
-          {
-            method: "GET",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-      let data = {};
-
+  const loadDocuments =
+    async () => {
       try {
-        data = await response.json();
-      } catch {
-        data = {};
-      }
+        const token =
+          getAuthToken();
 
-      if (!response.ok) {
+        if (!token) {
+          setDocuments([]);
+
+          return;
+        }
+
+        const response =
+          await fetch(
+            `${API_URL}/api/documents`,
+            {
+              method: "GET",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        let data = {};
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (
+          response.status ===
+            401 ||
+          response.status ===
+            403
+        ) {
+          console.error(
+            "Authentication expired while loading documents."
+          );
+
+          return;
+        }
+
+        if (!response.ok) {
+          console.error(
+            "Unable to load documents:",
+            data
+          );
+
+          setDocuments([]);
+
+          return;
+        }
+
+        setDocuments(
+          data.documents || []
+        );
+      } catch (error) {
         console.error(
-          "Unable to load documents:",
-          data
+          "Load documents error:",
+          error
         );
 
         setDocuments([]);
-
-        return;
       }
-
-      setDocuments(
-        data.documents || []
-      );
-    } catch (error) {
-      console.error(
-        "Load documents error:",
-        error
-      );
-
-      setDocuments([]);
-    }
-  };
+    };
 
   // =====================================================
   // CREATE ACCOUNT
@@ -773,7 +898,8 @@ function App() {
         let data = {};
 
         try {
-          data = await response.json();
+          data =
+            await response.json();
         } catch {
           data = {};
         }
@@ -841,6 +967,7 @@ function App() {
 
               body: JSON.stringify({
                 email,
+
                 password:
                   loginPassword,
               }),
@@ -850,10 +977,48 @@ function App() {
         let data = {};
 
         try {
-          data = await response.json();
+          data =
+            await response.json();
         } catch {
           data = {};
         }
+
+        // -------------------------------------------------
+        // SAFE LOGIN RESPONSE DEBUG
+        // Does NOT print the actual token.
+        // -------------------------------------------------
+
+        console.log(
+          "LOGIN RESPONSE:",
+          {
+            success:
+              data.success,
+
+            hasToken:
+              Boolean(
+                data.token
+              ),
+
+            hasAccessToken:
+              Boolean(
+                data.accessToken
+              ),
+
+            hasNestedToken:
+              Boolean(
+                data.data?.token
+              ),
+
+            hasNestedAccessToken:
+              Boolean(
+                data.data?.accessToken
+              ),
+
+            user:
+              data.user ||
+              data.data?.user,
+          }
+        );
 
         if (!response.ok) {
           alert(
@@ -864,8 +1029,48 @@ function App() {
           return;
         }
 
+        // -------------------------------------------------
+        // FIND AUTH TOKEN
+        // -------------------------------------------------
+
+        const token =
+          data.token ||
+          data.accessToken ||
+          data.data?.token ||
+          data.data?.accessToken;
+
+        if (!token) {
+          console.error(
+            "Login succeeded but no authentication token was returned."
+          );
+
+          alert(
+            "Login succeeded, but the server did not return an authentication token."
+          );
+
+          return;
+        }
+
+        // -------------------------------------------------
+        // SAVE AUTH TOKEN
+        // -------------------------------------------------
+
+        saveAuthToken(
+          token
+        );
+
+        localStorage.setItem(
+          "isLoggedIn",
+          "true"
+        );
+
+        // -------------------------------------------------
+        // USER DATA
+        // -------------------------------------------------
+
         const loggedInUser =
           data.user ||
+          data.data?.user ||
           data;
 
         setAccount({
@@ -886,17 +1091,9 @@ function App() {
             email,
         });
 
-        localStorage.setItem(
-          "isLoggedIn",
-          "true"
-        );
-
-        if (data.token) {
-          localStorage.setItem(
-            "docgenie-token",
-            data.token
-          );
-        }
+        // -------------------------------------------------
+        // LOAD DOCUMENTS
+        // -------------------------------------------------
 
         await loadDocuments();
 
@@ -917,88 +1114,105 @@ function App() {
   // DELETE DOCUMENT
   // =====================================================
 
-  const deleteDocument = async (
-    documentId
-  ) => {
-    try {
-      if (!documentId) {
-        alert(
-          "Document ID is missing."
-        );
-
-        return;
-      }
-
-      const token =
-        localStorage.getItem(
-          "docgenie-token"
-        );
-
-      if (!token) {
-        alert(
-          "Please login again."
-        );
-
-        navigate("login");
-
-        return;
-      }
-
-      const response =
-        await fetch(
-          `${API_URL}/api/documents/${documentId}`,
-          {
-            method: "DELETE",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-      let data = {};
-
+  const deleteDocument =
+    async (
+      documentId
+    ) => {
       try {
-        data = await response.json();
-      } catch {
-        data = {};
-      }
+        if (!documentId) {
+          alert(
+            "Document ID is missing."
+          );
 
-      if (!response.ok) {
-        alert(
-          data.message ||
-            "Unable to delete document."
+          return;
+        }
+
+        const token =
+          getAuthToken();
+
+        if (!token) {
+          alert(
+            "Please login again."
+          );
+
+          navigate("login");
+
+          return;
+        }
+
+        const response =
+          await fetch(
+            `${API_URL}/api/documents/${documentId}`,
+            {
+              method: "DELETE",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        let data = {};
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (
+          response.status ===
+            401 ||
+          response.status ===
+            403
+        ) {
+          alert(
+            "Your session has expired. Please login again."
+          );
+
+          handleLogout();
+
+          return;
+        }
+
+        if (!response.ok) {
+          alert(
+            data.message ||
+              "Unable to delete document."
+          );
+
+          return;
+        }
+
+        setDocuments(
+          (previous) =>
+            previous.filter(
+              (document) =>
+                document._id !==
+                documentId
+            )
         );
 
-        return;
+        setSelectedDocument(
+          null
+        );
+
+        navigate(
+          "documents"
+        );
+      } catch (error) {
+        console.error(
+          "Delete document error:",
+          error
+        );
+
+        alert(
+          "Unable to connect to the server. Please try again."
+        );
       }
-
-      setDocuments(
-        (previous) =>
-          previous.filter(
-            (document) =>
-              document._id !==
-              documentId
-          )
-      );
-
-      setSelectedDocument(null);
-
-      navigate(
-        "documents"
-      );
-    } catch (error) {
-      console.error(
-        "Delete document error:",
-        error
-      );
-
-      alert(
-        "Unable to connect to the server. Please try again."
-      );
-    }
-  };
+    };
 
   // =====================================================
   // BIOMETRIC SUPPORT
@@ -1015,12 +1229,9 @@ function App() {
         }
 
         if (
-          PublicKeyCredential
-            .isUserVerifyingPlatformAuthenticatorAvailable
+          PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
         ) {
-          return await
-            PublicKeyCredential
-              .isUserVerifyingPlatformAuthenticatorAvailable();
+          return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         }
 
         return false;
@@ -1093,8 +1304,7 @@ function App() {
     async () => {
       try {
         const supported =
-          await
-            isBiometricSupported();
+          await isBiometricSupported();
 
         if (!supported) {
           alert(
@@ -1115,8 +1325,8 @@ function App() {
           );
 
         const credential =
-          await
-            navigator.credentials.create({
+          await navigator.credentials.create(
+            {
               publicKey: {
                 challenge,
 
@@ -1156,16 +1366,17 @@ function App() {
                   },
                 ],
 
-                authenticatorSelection: {
-                  authenticatorAttachment:
-                    "platform",
+                authenticatorSelection:
+                  {
+                    authenticatorAttachment:
+                      "platform",
 
-                  userVerification:
-                    "required",
+                    userVerification:
+                      "required",
 
-                  residentKey:
-                    "preferred",
-                },
+                    residentKey:
+                      "preferred",
+                  },
 
                 timeout:
                   60000,
@@ -1173,7 +1384,8 @@ function App() {
                 attestation:
                   "none",
               },
-            });
+            }
+          );
 
         if (!credential) {
           alert(
@@ -1243,8 +1455,7 @@ function App() {
         }
 
         const supported =
-          await
-            isBiometricSupported();
+          await isBiometricSupported();
 
         if (!supported) {
           alert(
@@ -1260,8 +1471,8 @@ function App() {
           );
 
         const credential =
-          await
-            navigator.credentials.get({
+          await navigator.credentials.get(
+            {
               publicKey: {
                 challenge,
 
@@ -1283,7 +1494,8 @@ function App() {
                 timeout:
                   60000,
               },
-            });
+            }
+          );
 
         if (!credential) {
           alert(
@@ -1294,9 +1506,7 @@ function App() {
         }
 
         const token =
-          localStorage.getItem(
-            "docgenie-token"
-          );
+          getAuthToken();
 
         if (!token) {
           alert(
@@ -1325,19 +1535,20 @@ function App() {
   // DISABLE BIOMETRIC
   // =====================================================
 
-  const disableBiometric = () => {
-    localStorage.removeItem(
-      "docgenie-biometric-enabled"
-    );
+  const disableBiometric =
+    () => {
+      localStorage.removeItem(
+        "docgenie-biometric-enabled"
+      );
 
-    localStorage.removeItem(
-      "docgenie-biometric-credential"
-    );
+      localStorage.removeItem(
+        "docgenie-biometric-credential"
+      );
 
-    alert(
-      "Biometric login has been disabled."
-    );
-  };
+      alert(
+        "Biometric login has been disabled."
+      );
+    };
 
   // =====================================================
   // LOGOUT
@@ -1358,6 +1569,10 @@ function App() {
 
     localStorage.removeItem(
       "docgenie-token"
+    );
+
+    localStorage.removeItem(
+      "token"
     );
 
     localStorage.removeItem(
@@ -1407,7 +1622,9 @@ function App() {
   const addDocument = (
     document
   ) => {
-    if (!document) return;
+    if (!document) {
+      return;
+    }
 
     setDocuments(
       (previous) => [
@@ -1480,11 +1697,13 @@ function App() {
           onLogin={
             handleLogin
           }
+
           onCreateAccount={() =>
             navigate(
               "create-account"
             )
           }
+
           onBiometricLogin={
             biometricLogin
           }
@@ -1498,14 +1717,17 @@ function App() {
       {page === "create-account" && (
         <CreateAccount
           account={account}
+
           updateAccount={
             updateAccount
           }
+
           onContinue={() =>
             navigate(
               "verify-phone"
             )
           }
+
           onLogin={() =>
             navigate("login")
           }
@@ -1519,11 +1741,13 @@ function App() {
       {page === "verify-phone" && (
         <VerifyPhone
           account={account}
+
           onContinue={() =>
             navigate(
               "enter-email"
             )
           }
+
           onBack={() =>
             navigate(
               "create-account"
@@ -1539,14 +1763,17 @@ function App() {
       {page === "enter-email" && (
         <EnterEmail
           account={account}
+
           updateAccount={
             updateAccount
           }
+
           onContinue={() =>
             navigate(
               "verify-email"
             )
           }
+
           onBack={() =>
             navigate(
               "verify-phone"
@@ -1562,11 +1789,13 @@ function App() {
       {page === "verify-email" && (
         <VerifyEmail
           account={account}
+
           onContinue={() =>
             navigate(
               "create-password"
             )
           }
+
           onBack={() =>
             navigate(
               "enter-email"
@@ -1582,12 +1811,15 @@ function App() {
       {page === "create-password" && (
         <CreatePassword
           account={account}
+
           updateAccount={
             updateAccount
           }
+
           onContinue={
             handleCreatePassword
           }
+
           onBack={() =>
             navigate(
               "verify-email"
@@ -1603,6 +1835,7 @@ function App() {
       {page === "account-created" && (
         <AccountCreated
           account={account}
+
           onGetStarted={() =>
             navigate("login")
           }
@@ -1616,18 +1849,23 @@ function App() {
       {page === "home" && (
         <Home
           account={account}
+
           documents={
             documentsWithExpiryStatus
           }
+
           onNavigate={
             navigate
           }
+
           profilePic={
             profilePic
           }
+
           onOpenProfilePicker={
             openProfilePicker
           }
+
           notificationCount={
             expiryNotifications.length
           }
@@ -1641,27 +1879,35 @@ function App() {
       {page === "profile" && (
         <Profile
           account={account}
+
           onNavigate={
             navigate
           }
+
           profilePic={
             profilePic
           }
+
           onProfilePicChange={
             handleProfilePicChange
           }
+
           onOpenProfilePicker={
             openProfilePicker
           }
+
           onRemoveProfilePic={
             removeProfilePic
           }
+
           onLogout={
             handleLogout
           }
+
           onEnableBiometric={
             enableBiometric
           }
+
           onDisableBiometric={
             disableBiometric
           }
@@ -1677,9 +1923,11 @@ function App() {
           documents={
             documentsWithExpiryStatus
           }
+
           onNavigate={
             navigate
           }
+
           onOpenDocument={
             openDocument
           }
@@ -1704,9 +1952,11 @@ function App() {
                 }
               : null
           }
+
           onNavigate={
             navigate
           }
+
           onDelete={
             deleteDocument
           }
@@ -1722,6 +1972,7 @@ function App() {
           onNavigate={
             navigate
           }
+
           onUpload={
             addDocument
           }
@@ -1737,6 +1988,7 @@ function App() {
           onNavigate={
             navigate
           }
+
           onScanComplete={
             handleScanComplete
           }
@@ -1752,6 +2004,7 @@ function App() {
           documents={
             documents
           }
+
           onNavigate={
             navigate
           }
@@ -1767,9 +2020,11 @@ function App() {
           documents={
             documentsWithExpiryStatus
           }
+
           onNavigate={
             navigate
           }
+
           notificationCount={
             expiryNotifications.length
           }

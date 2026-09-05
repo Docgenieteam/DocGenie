@@ -3,6 +3,7 @@ const { getMessaging } = require("firebase-admin/messaging");
 require("../config/firebaseAdmin");
 
 const User = require("../models/User");
+
 // =====================================================
 // SAVE FCM TOKEN
 // =====================================================
@@ -18,7 +19,6 @@ const saveFCMToken = async (req, res) => {
       });
     }
 
-    // Add token only if it doesn't already exist.
     await User.findByIdAndUpdate(
       req.user._id,
       {
@@ -115,8 +115,13 @@ const sendTestNotification = async (req, res) => {
 
       tokens: user.fcmTokens,
     };
+
     const response = await getMessaging().sendEachForMulticast(message);
-    // Remove invalid/expired FCM tokens.
+
+    // ---------------------------------------------------
+    // REMOVE INVALID TOKENS
+    // ---------------------------------------------------
+
     const invalidTokens = [];
 
     response.responses.forEach((result, index) => {

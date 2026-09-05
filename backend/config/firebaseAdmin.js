@@ -1,23 +1,22 @@
-const { initializeApp, getApps, cert } = require("firebase-admin/app");
+const { getApps, initializeApp, cert } = require("firebase-admin/app");
 
 if (getApps().length === 0) {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      "FIREBASE_SERVICE_ACCOUNT environment variable is missing.",
-    );
-  }
-
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
-  if (serviceAccount.private_key) {
-    serviceAccount.private_key = serviceAccount.private_key.replace(
-      /\\n/g,
-      "\n",
+      "Firebase environment variables are missing. Check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.",
     );
   }
 
   initializeApp({
-    credential: cert(serviceAccount),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
   });
 }
 

@@ -63,9 +63,16 @@ const documentSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Path inside Supabase Storage
     storageKey: {
       type: String,
       default: "",
+    },
+
+    storageProvider: {
+      type: String,
+      enum: ["supabase", "firebase", "local"],
+      default: "supabase",
     },
 
     fileType: {
