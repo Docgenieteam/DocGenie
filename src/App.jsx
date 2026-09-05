@@ -54,68 +54,84 @@ function App() {
   // DOCUMENTS
   // =====================================================
 
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      name: "Aadhaar Card",
-      category: "Identity",
-      date: "12 May 2024",
-      icon: "identity",
-      color: "blue",
-      expiry: "2026-08-25",
-      description: "Aadhaar identity document",
-    },
-    {
-      id: 2,
-      name: "PAN Card",
-      category: "Financial",
-      date: "10 Apr 2024",
-      icon: "financial",
-      color: "blue",
-      expiry: "",
-      description: "Permanent Account Number card",
-    },
-    {
-      id: 3,
-      name: "Passport",
-      category: "Identity",
-      date: "26 Apr 2024",
-      icon: "passport",
-      color: "blue",
-      expiry: "2034-04-12",
-      description: "Indian passport",
-    },
-    {
-      id: 4,
-      name: "10th Marksheet",
-      category: "Education",
-      date: "10 Apr 2024",
-      icon: "education",
-      color: "red",
-      expiry: "",
-      description: "10th standard marksheet",
-    },
-    {
-      id: 5,
-      name: "Health Insurance",
-      category: "Health",
-      date: "02 Apr 2024",
-      icon: "health",
-      color: "red",
-      expiry: "",
-      description: "Health insurance document",
-    },
-    {
-      id: 6,
-      name: "Property Deed",
-      category: "Property",
-      date: "28 Mar 2024",
-      icon: "property",
-      color: "orange",
-      expiry: "",
-      description: "Property ownership document",
-    },
-  ]);
+  // =====================================================
+  // USER-SPECIFIC DOCUMENTS
+  // =====================================================
+
+  // New users start with NO documents.
+  // Existing users load only their own documents.
+  const [documents, setDocuments] = useState([]);
+
+  const getStoredUser = () => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (error) {
+      console.error("Could not read stored user:", error);
+      return null;
+    }
+  };
+
+  const getCurrentUserKey = () => {
+    const storedUser = getStoredUser();
+
+    const email =
+      account.email ||
+      storedUser?.email ||
+      storedUser?.user?.email ||
+      storedUser?.account?.email;
+
+    if (email) {
+      return email.trim().toLowerCase();
+    }
+
+    const phone =
+      account.phone ||
+      storedUser?.phone ||
+      storedUser?.user?.phone ||
+      storedUser?.account?.phone;
+
+    if (phone) {
+      return phone.trim();
+    }
+
+    return null;
+  };
+
+  const getDocumentsStorageKey = () => {
+    const userKey = getCurrentUserKey();
+
+    if (!userKey) return null;
+
+    return `docgenie-documents-${userKey}`;
+  };
+
+  const loadDocumentsForCurrentUser = () => {
+    const storageKey = getDocumentsStorageKey();
+
+    if (!storageKey) {
+      setDocuments([]);
+      return;
+    }
+
+    try {
+      const savedDocuments = JSON.parse(
+        localStorage.getItem(storageKey) || "[]"
+      );
+
+      setDocuments(
+        Array.isArray(savedDocuments) ? savedDocuments : []
+      );
+    } catch (error) {
+      console.error("Could not load user documents:", error);
+      setDocuments([]);
+    }
+  };
+
+  // Load documents whenever the current user's email/phone changes.
+  useEffect(() => {
+    loadDocumentsForCurrentUser();
+  }, [account.email, account.phone]);
 
   // =====================================================
   // EXPIRY STATUS CALCULATION
@@ -704,36 +720,38 @@ function App() {
   // =====================================================
 
   const addDocument = (document) => {
+    const storageKey = getDocumentsStorageKey();
+
+    if (!storageKey) {
+      alert("Please log in before uploading a document.");
+      return;
+    }
+
     const newDocument = {
       ...document,
       id: Date.now(),
     };
 
-    setDocuments((previous) => [
-      newDocument,
-      ...previous,
-    ]);
+    setDocuments((previous) => {
+      const updatedDocuments = [
+        newDocument,
+        ...previous,
+      ];
 
-    try {
-      const existingDocuments = JSON.parse(
-        localStorage.getItem(
-          "docgenie-documents"
-        ) || "[]"
-      );
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify(updatedDocuments)
+        );
+      } catch (error) {
+        console.error(
+          "Could not save document:",
+          error
+        );
+      }
 
-      localStorage.setItem(
-        "docgenie-documents",
-        JSON.stringify([
-          newDocument,
-          ...existingDocuments,
-        ])
-      );
-    } catch (error) {
-      console.error(
-        "Could not save document:",
-        error
-      );
-    }
+      return updatedDocuments;
+    });
 
     navigate("documents");
   };
@@ -743,16 +761,27 @@ function App() {
   // =====================================================
 
   const deleteDocument = (id) => {
+    const storageKey = getDocumentsStorageKey();
+
     setDocuments((previous) => {
       const updatedDocuments =
         previous.filter(
           (document) => document.id !== id
         );
 
-      localStorage.setItem(
-        "docgenie-documents",
-        JSON.stringify(updatedDocuments)
-      );
+      if (storageKey) {
+        try {
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify(updatedDocuments)
+          );
+        } catch (error) {
+          console.error(
+            "Could not update documents:",
+            error
+          );
+        }
+      }
 
       return updatedDocuments;
     });
@@ -799,9 +828,10 @@ function App() {
 
       {page === "login" && (
         <Login
-          onLogin={() =>
-            navigate("home")
-          }
+          onLogin={() => {
+            loadDocumentsForCurrentUser();
+            navigate("home");
+          }}
           onCreateAccount={() =>
             navigate("create-account")
           }
@@ -876,9 +906,10 @@ function App() {
       {page === "review-details" && (
         <ReviewDetails
           account={account}
-          onCreate={() =>
-            navigate("account-created")
-          }
+          onCreate={() => {
+            setDocuments([]);
+            navigate("account-created");
+          }}
           onBack={() =>
             navigate("verify-email")
           }
