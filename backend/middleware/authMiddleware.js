@@ -21,7 +21,14 @@ const protect = async (req, res, next) => {
       });
     }
 
+    console.log("AUTH CHECK:", {
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      tokenLength: token.length,
+    });
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log("AUTH DECODED:", decoded);
 
     const user = await User.findById(decoded.userId).select("-password");
 

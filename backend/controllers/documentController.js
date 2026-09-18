@@ -91,6 +91,7 @@ const createDocument = async (req, res) => {
       fileType: req.file.mimetype,
 
       fileSize: req.file.size,
+      expiryNotificationsSent: [],
     });
 
     res.status(201).json({

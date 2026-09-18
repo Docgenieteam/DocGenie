@@ -1,17 +1,29 @@
 const cron = require("node-cron");
 
 const Document = require("../models/Document");
+
 const { sendDocumentExpiryNotification } = require("../services/fcmServices");
 
-// Notifications are sent:
-// 30 days before expiry
-// 7 days before expiry
-// 1 day before expiry
-// On expiry day
-// 1 day after expiry
-const NOTIFICATION_DAYS = [30, 7, 1, 0, -1];
+// =====================================================
+// NOTIFICATION DAYS
+// =====================================================
+//
+// Notification will be sent:
+// - 30 days before expiry
+// - 7 days before expiry
+// - 1 day before expiry
+// - On expiry day
+// - After expiry
+//
+// You can change these later.
+// =====================================================
 
-// Get start of today
+const NOTIFICATION_DAYS = [30, 7, 1, 0];
+
+// =====================================================
+// GET START OF DAY
+// =====================================================
+
 const startOfDay = (date) => {
   const result = new Date(date);
 
@@ -20,9 +32,13 @@ const startOfDay = (date) => {
   return result;
 };
 
-// Calculate number of days until expiry
+// =====================================================
+// CALCULATE DAYS REMAINING
+// =====================================================
+
 const getDaysRemaining = (expiryDate) => {
   const today = startOfDay(new Date());
+
   const expiry = startOfDay(new Date(expiryDate));
 
   const difference = expiry.getTime() - today.getTime();
@@ -30,7 +46,10 @@ const getDaysRemaining = (expiryDate) => {
   return Math.round(difference / (1000 * 60 * 60 * 24));
 };
 
-// Check all documents
+// =====================================================
+// PROCESS DOCUMENT EXPIRY NOTIFICATIONS
+// =====================================================
+
 const processDocumentExpiryNotifications = async () => {
   try {
     console.log("Checking documents for expiry notifications...");
@@ -54,27 +73,37 @@ const processDocumentExpiryNotifications = async () => {
 
         if (Number.isNaN(expiryDate.getTime())) {
           console.log(`Invalid expiry date for document ${document._id}`);
+
           continue;
         }
 
         const daysRemaining = getDaysRemaining(expiryDate);
 
+        // ---------------------------------------------
         // Only send on configured days
+        // ---------------------------------------------
+
         if (!NOTIFICATION_DAYS.includes(daysRemaining)) {
           continue;
         }
 
-        // Prevent duplicate notifications
+        // ---------------------------------------------
+        // Check whether this notification was already sent
+        // ---------------------------------------------
+
         const notificationKey = `${daysRemaining}`;
 
-        const alreadySent =
-          document.expiryNotificationsSent?.includes(notificationKey);
+        const alreadySent = document.expiryNotificationsSent?.some(
+          (item) => item === notificationKey,
+        );
 
         if (alreadySent) {
           continue;
         }
 
-        console.log(`Sending expiry notification for "${document.name}"...`);
+        // ---------------------------------------------
+        // SEND NOTIFICATION
+        // ---------------------------------------------
 
         const result = await sendDocumentExpiryNotification({
           userId: document.userId,
@@ -84,7 +113,10 @@ const processDocumentExpiryNotifications = async () => {
           daysRemaining,
         });
 
-        // Only mark notification as sent if FCM succeeded
+        // ---------------------------------------------
+        // Only mark as sent when FCM succeeded
+        // ---------------------------------------------
+
         if (result.success) {
           await Document.findByIdAndUpdate(document._id, {
             $addToSet: {
@@ -93,7 +125,7 @@ const processDocumentExpiryNotifications = async () => {
           });
 
           console.log(
-            `Notification sent for "${document.name}" (${daysRemaining} days remaining).`,
+            `Expiry notification sent for "${document.name}" (${daysRemaining} days remaining).`,
           );
         } else {
           console.log(
@@ -114,11 +146,17 @@ const processDocumentExpiryNotifications = async () => {
   }
 };
 
-// Start automatic notification scheduler
+// =====================================================
+// START AUTOMATIC JOB
+// =====================================================
+
 const startNotificationJob = () => {
   console.log("Document notification scheduler started.");
 
-  // Run every day at 9:00 AM India time
+  // ---------------------------------------------------
+  // RUN EVERY DAY AT 9:00 AM
+  // ---------------------------------------------------
+
   cron.schedule(
     "0 9 * * *",
     async () => {
@@ -131,7 +169,15 @@ const startNotificationJob = () => {
     },
   );
 
-  // Run once when server starts
+  // ---------------------------------------------------
+  // RUN ON SERVER START
+  // ---------------------------------------------------
+  //
+  // This is useful for testing.
+  // It also means you don't have to wait until 9 AM
+  // after restarting your backend.
+  // ---------------------------------------------------
+
   processDocumentExpiryNotifications();
 };
 

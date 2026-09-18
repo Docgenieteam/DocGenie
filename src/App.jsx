@@ -13,8 +13,7 @@ import {
   onMessage,
 } from "firebase/messaging";
 
-import {
-  messaging,
+  import {
   initializeMessaging,
 } from "./firebase";
 
@@ -433,7 +432,7 @@ function App() {
           await navigator.serviceWorker.register(
             `${import.meta.env.BASE_URL}firebase-messaging-sw.js`,
           );
-
+         await navigator.serviceWorker.ready;
         console.log(
           "FCM: Firebase service worker registered."
         );

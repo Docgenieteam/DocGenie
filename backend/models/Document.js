@@ -2,20 +2,12 @@ const mongoose = require("mongoose");
 
 const documentSchema = new mongoose.Schema(
   {
-    // =====================================================
-    // OWNER
-    // =====================================================
-
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
     },
-
-    // =====================================================
-    // DOCUMENT INFORMATION
-    // =====================================================
 
     name: {
       type: String,
@@ -44,9 +36,32 @@ const documentSchema = new mongoose.Schema(
       default: "blue",
     },
 
+    // =====================================================
+    // DOCUMENT EXPIRY DATE
+    // =====================================================
+
     expiry: {
       type: String,
       default: "",
+    },
+
+    // =====================================================
+    // EXPIRY NOTIFICATIONS ALREADY SENT
+    // =====================================================
+    //
+    // Possible values:
+    // "30"       = 30 days before expiry
+    // "7"        = 7 days before expiry
+    // "1"        = 1 day before expiry
+    // "0"        = expires today
+    //
+    // This prevents the same notification from being
+    // sent repeatedly.
+    // =====================================================
+
+    expiryNotificationsSent: {
+      type: [String],
+      default: [],
     },
 
     description: {
@@ -54,16 +69,11 @@ const documentSchema = new mongoose.Schema(
       default: "",
     },
 
-    // =====================================================
-    // FILE INFORMATION
-    // =====================================================
-
     originalFileName: {
       type: String,
       default: "",
     },
 
-    // Path inside Supabase Storage
     storageKey: {
       type: String,
       default: "",
@@ -71,7 +81,6 @@ const documentSchema = new mongoose.Schema(
 
     storageProvider: {
       type: String,
-      enum: ["supabase", "firebase", "local"],
       default: "supabase",
     },
 
@@ -85,6 +94,7 @@ const documentSchema = new mongoose.Schema(
       default: 0,
     },
   },
+
   {
     timestamps: true,
   },
