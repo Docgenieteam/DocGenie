@@ -13,9 +13,10 @@ import {
   onMessage,
 } from "firebase/messaging";
 
-  import {
+import {
   initializeMessaging,
 } from "./firebase";
+import { signInWithGoogle } from "./firebaseAuth";
 
 // =====================================================
 // API CONFIGURATION
@@ -1026,7 +1027,6 @@ function App() {
         } catch {
           data = {};
         }
-
         // -------------------------------------------------
         // SAFE LOGIN RESPONSE DEBUG
         // Does NOT print the actual token.
@@ -1153,6 +1153,154 @@ function App() {
         );
       }
     };
+
+  // =====================================================
+  // GOOGLE LOGIN
+  // =====================================================
+
+  const handleGoogleLogin = async () => {
+  try {
+    const result = await signInWithGoogle();
+
+    if (!result) {
+      return;
+    }
+
+    console.log("Google login result:", result);
+
+    const user = result?.user || result;
+
+    if (!user || typeof user.getIdToken !== "function") {
+      console.error(
+        "Google login succeeded, but Firebase user was not found.",
+        result
+      );
+
+      alert(
+        "Google login failed. Firebase user information was not received."
+      );
+
+      return;
+    }
+
+    const idToken = await user.getIdToken(true);
+
+    if (!idToken) {
+      console.error("Firebase ID token could not be obtained.");
+
+      alert(
+        "Google login failed. No authentication token received."
+      );
+
+      return;
+    }
+
+    console.log("Firebase ID token received successfully.");
+
+  // Send Firebase token to our backend
+  const response = await fetch(
+  `${API_URL}/api/auth/google`,
+  {
+  method: "POST",
+
+  headers: {
+  "Content-Type": "application/json",
+  },
+
+  body: JSON.stringify({
+  idToken,
+  }),
+  },
+  );
+
+  let data = {};
+
+  try {
+  data = await response.json();
+  } catch {
+  data = {};
+  }
+
+  if (!response.ok) {
+  console.error("Google backend login error:", data);
+
+  alert(
+  data.message ||
+  "Unable to login with Google.",
+  );
+
+  return;
+  }
+
+  const token =
+  data.token ||
+  data.accessToken ||
+  data.data?.token ||
+  data.data?.accessToken;
+
+  if (!token) {
+  console.error(
+  "Google login succeeded but backend did not return a token.",
+  );
+
+  alert(
+  "Google login succeeded, but the server did not return an authentication token.",
+  );
+
+  return;
+  }
+
+  // Save DocGenie JWT
+  saveAuthToken(token);
+
+  localStorage.setItem(
+  "isLoggedIn",
+  "true",
+  );
+
+  // Save user information
+  const loggedInUser =
+  data.user ||
+  data.data?.user ||
+  {};
+
+  setAccount({
+  name:
+  loggedInUser.name ||
+  result.user?.displayName ||
+  "",
+
+  age:
+  loggedInUser.age ||
+  "",
+
+  phone:
+  loggedInUser.phone ||
+  "",
+
+  email:
+  loggedInUser.email ||
+  result.user?.email ||
+  "",
+  });
+
+  // Load user's documents
+  await loadDocuments();
+
+  // Go to Home
+  navigate("home");
+
+  } catch (error) {
+  console.error(
+  "Google login error:",
+  error,
+  );
+
+  alert(
+  "Unable to login with Google. Please try again.",
+  );
+  }
+  };
 
   // =====================================================
   // DELETE DOCUMENT
@@ -1750,6 +1898,10 @@ function App() {
 
           onBiometricLogin={
             biometricLogin
+          }
+
+          onGoogleLogin={
+            handleGoogleLogin
           }
         />
       )}
