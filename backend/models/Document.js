@@ -68,7 +68,38 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // =====================================================
+    // OCR DATA
+    // =====================================================
 
+    extractedText: {
+      type: String,
+      default: "",
+    },
+
+    ocrProcessed: {
+      type: Boolean,
+      default: false,
+    },
+
+    ocrProcessedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // =====================================================
+    // AUTOMATICALLY DETECTED EXPIRY
+    // =====================================================
+
+    detectedExpiry: {
+      type: String,
+      default: "",
+    },
+
+    expiryDetectedAutomatically: {
+      type: Boolean,
+      default: false,
+    },
     originalFileName: {
       type: String,
       default: "",

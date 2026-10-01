@@ -4,7 +4,25 @@ const path = require("path");
 const Document = require("../models/Document");
 const { supabase, bucketName } = require("../config/supabase");
 
+// =====================================================
+// OCR SERVICE
+// =====================================================
+
+const { extractTextFromBuffer } = require("../services/ocrService");
+
+// =====================================================
+// DOCUMENT DETECTION
+// =====================================================
+
+const {
+  detectDocumentType,
+  detectExpiryDate,
+} = require("../services/documentDetectionService");
+
+// =====================================================
 // GET ALL DOCUMENTS
+// =====================================================
+
 const getDocuments = async (req, res) => {
   try {
     const documents = await Document.find({
@@ -25,12 +43,123 @@ const getDocuments = async (req, res) => {
   }
 };
 
+// =====================================================
+// OCR SCAN DOCUMENT
+//
+// IMPORTANT:
+// This does NOT save the document.
+// It only scans the selected file and returns
+// detected information to the frontend.
+// =====================================================
+
+const scanDocument = async (req, res) => {
+  try {
+    // -------------------------------------------------
+    // CHECK FILE
+    // -------------------------------------------------
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload a file to scan",
+      });
+    }
+
+    console.log("==========================================");
+
+    console.log("OCR scan started:", req.file.originalname);
+
+    console.log("File type:", req.file.mimetype);
+
+    console.log("File size:", req.file.size);
+
+    // -------------------------------------------------
+    // RUN OCR
+    // -------------------------------------------------
+
+    const extractedText = await extractTextFromBuffer(
+      req.file.buffer,
+      req.file.mimetype,
+    );
+
+    console.log("OCR text extracted successfully");
+
+    console.log("Extracted text length:", extractedText?.length || 0);
+
+    // -------------------------------------------------
+    // DETECT DOCUMENT TYPE
+    // -------------------------------------------------
+
+    const documentType = detectDocumentType(extractedText || "");
+
+    console.log("Detected document type:", documentType);
+
+    // -------------------------------------------------
+    // DETECT EXPIRY DATE
+    // -------------------------------------------------
+
+    const expiryDate = detectExpiryDate(extractedText || "");
+
+    console.log("Detected expiry date:", expiryDate || "Not detected");
+
+    console.log("OCR scan completed");
+
+    console.log("==========================================");
+
+    // -------------------------------------------------
+    // SEND RESULT TO FRONTEND
+    // -------------------------------------------------
+
+    return res.json({
+      success: true,
+
+      scan: {
+        documentType,
+
+        expiryDate,
+
+        extractedText,
+
+        originalFileName: req.file.originalname,
+
+        fileType: req.file.mimetype,
+
+        fileSize: req.file.size,
+      },
+    });
+  } catch (error) {
+    console.error("==========================================");
+
+    console.error("OCR SCAN ERROR:");
+
+    console.error(error);
+
+    console.error("==========================================");
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to scan document",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
 // CREATE / UPLOAD DOCUMENT
+//
+// This is the FINAL upload.
+// OCR happens separately through /scan.
+// =====================================================
+
 const createDocument = async (req, res) => {
   let storageKey = null;
 
   try {
     const { name, category, date, icon, color, expiry, description } = req.body;
+
+    // -------------------------------------------------
+    // CHECK FILE
+    // -------------------------------------------------
 
     if (!req.file) {
       return res.status(400).json({
@@ -39,19 +168,29 @@ const createDocument = async (req, res) => {
       });
     }
 
-    // Create a unique filename
+    // -------------------------------------------------
+    // CREATE UNIQUE FILE NAME
+    // -------------------------------------------------
+
     const extension = path.extname(req.file.originalname).toLowerCase();
 
     const uniqueFileName = `${crypto.randomUUID()}${extension}`;
 
-    // Store files inside a folder for each user
+    // -------------------------------------------------
+    // USER-SPECIFIC STORAGE PATH
+    // -------------------------------------------------
+
     storageKey = `${req.user._id}/${uniqueFileName}`;
 
-    // Upload file to Supabase Storage
+    // -------------------------------------------------
+    // UPLOAD TO SUPABASE
+    // -------------------------------------------------
+
     const { error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(storageKey, req.file.buffer, {
         contentType: req.file.mimetype,
+
         upsert: false,
       });
 
@@ -64,7 +203,10 @@ const createDocument = async (req, res) => {
       });
     }
 
-    // Save document metadata to MongoDB
+    // -------------------------------------------------
+    // SAVE DOCUMENT TO MONGODB
+    // -------------------------------------------------
+
     const document = await Document.create({
       userId: req.user._id,
 
@@ -91,19 +233,28 @@ const createDocument = async (req, res) => {
       fileType: req.file.mimetype,
 
       fileSize: req.file.size,
+
       expiryNotificationsSent: [],
     });
 
+    // -------------------------------------------------
+    // SUCCESS
+    // -------------------------------------------------
+
     res.status(201).json({
       success: true,
+
       message: "Document uploaded successfully",
+
       document,
     });
   } catch (error) {
     console.error("Create document error:", error);
 
-    // If MongoDB save fails after Supabase upload,
-    // remove the uploaded file from Supabase.
+    // -------------------------------------------------
+    // CLEANUP SUPABASE FILE IF MONGODB FAILED
+    // -------------------------------------------------
+
     if (storageKey) {
       try {
         await supabase.storage.from(bucketName).remove([storageKey]);
@@ -119,7 +270,10 @@ const createDocument = async (req, res) => {
   }
 };
 
+// =====================================================
 // GET SINGLE DOCUMENT
+// =====================================================
+
 const getDocument = async (req, res) => {
   try {
     const document = await Document.findOne({
@@ -148,7 +302,10 @@ const getDocument = async (req, res) => {
   }
 };
 
+// =====================================================
 // GET SIGNED FILE URL
+// =====================================================
+
 const getDocumentFileUrl = async (req, res) => {
   try {
     const document = await Document.findOne({
@@ -177,8 +334,6 @@ const getDocumentFileUrl = async (req, res) => {
       });
     }
 
-    // Generate a temporary signed URL.
-    // The URL will remain valid for 1 hour.
     const { data, error } = await supabase.storage
       .from(bucketName)
       .createSignedUrl(document.storageKey, 60 * 60);
@@ -194,8 +349,11 @@ const getDocumentFileUrl = async (req, res) => {
 
     res.json({
       success: true,
+
       url: data.signedUrl,
+
       fileName: document.originalFileName,
+
       fileType: document.fileType,
     });
   } catch (error) {
@@ -208,7 +366,10 @@ const getDocumentFileUrl = async (req, res) => {
   }
 };
 
+// =====================================================
 // DELETE DOCUMENT
+// =====================================================
+
 const deleteDocument = async (req, res) => {
   try {
     const document = await Document.findOne({
@@ -223,7 +384,10 @@ const deleteDocument = async (req, res) => {
       });
     }
 
-    // Delete actual file from Supabase
+    // -------------------------------------------------
+    // DELETE FILE FROM SUPABASE
+    // -------------------------------------------------
+
     if (document.storageKey && document.storageProvider === "supabase") {
       const { error: storageError } = await supabase.storage
         .from(bucketName)
@@ -239,7 +403,10 @@ const deleteDocument = async (req, res) => {
       }
     }
 
-    // Delete metadata from MongoDB
+    // -------------------------------------------------
+    // DELETE MONGODB DOCUMENT
+    // -------------------------------------------------
+
     await Document.deleteOne({
       _id: document._id,
     });
@@ -258,8 +425,13 @@ const deleteDocument = async (req, res) => {
   }
 };
 
+// =====================================================
+// EXPORT
+// =====================================================
+
 module.exports = {
   getDocuments,
+  scanDocument,
   createDocument,
   getDocument,
   getDocumentFileUrl,

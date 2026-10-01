@@ -5,6 +5,7 @@ const upload = require("../middleware/uploadMiddleware");
 
 const {
   getDocuments,
+  scanDocument,
   createDocument,
   getDocument,
   getDocumentFileUrl,
@@ -13,20 +14,73 @@ const {
 
 const router = express.Router();
 
-// Get all documents for logged-in user
+// =====================================================
+// GET ALL DOCUMENTS
+// =====================================================
+
 router.get("/", protect, getDocuments);
 
-// Upload a new document
+// =====================================================
+// OCR SCAN DOCUMENT
+// =====================================================
+//
+// This route scans the selected JPG / PNG / WEBP / PDF
+// before the document is permanently uploaded.
+//
+// Frontend sends:
+// FormData {
+//   file: selectedFile
+// }
+//
+// Backend returns:
+// - extractedText
+// - documentType
+// - expiryDate
+// - originalFileName
+// - fileType
+// - fileSize
+//
+// IMPORTANT:
+// Keep this route BEFORE /:id
+// =====================================================
+
+router.post("/scan", protect, upload.single("file"), scanDocument);
+
+// =====================================================
+// CREATE / UPLOAD DOCUMENT
+// =====================================================
+//
+// This is the final upload.
+// The file is stored in Supabase Storage and its
+// metadata is stored in MongoDB.
+// =====================================================
+
 router.post("/", protect, upload.single("file"), createDocument);
 
-// Get temporary signed URL for View / Download / Share
-// IMPORTANT: This must come BEFORE /:id
+// =====================================================
+// GET SIGNED FILE URL
+// =====================================================
+//
+// IMPORTANT:
+// This must come BEFORE /:id
+// =====================================================
+
 router.get("/:id/file-url", protect, getDocumentFileUrl);
 
-// Get one document's metadata
+// =====================================================
+// GET ONE DOCUMENT
+// =====================================================
+
 router.get("/:id", protect, getDocument);
 
-// Delete document + actual Supabase file
+// =====================================================
+// DELETE DOCUMENT
+// =====================================================
+
 router.delete("/:id", protect, deleteDocument);
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = router;
